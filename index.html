@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Revisión de Tanques Superficiales</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+    input, textarea, select, button {
+      width: 100%;
+      margin-bottom: 15px;
+      padding: 10px;
+      font-size: 1em;
+    }
+    label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>REVISIÓN DE TANQUES SUPERFICIALES</h2>
+  <form id="tanqueForm">
+    <label for="tanque">Tanque:</label>
+    <select name="tanque" id="tanque" required>
+      <option value="">Seleccione una opción</option>
+      <option value="GEMELOS">GEMELOS</option>
+      <option value="TANQUE 2">TANQUE 2</option>
+      <option value="MEGA TANQUE">MEGA TANQUE</option>
+      <option value="FRANCISCO VILLA">FRANCISCO VILLA</option>
+      <option value="FONAPO">FONAPO</option>
+      <option value="LUIS ORTEGA">LUIS ORTEGA</option>
+      <option value="BICENTENARIO">BICENTENARIO</option>
+    </select>
+
+    <label>Nivel del Tanque:</label>
+    <input type="radio" name="nivel" value="1 METRO" required> 1 METRO<br>
+    <input type="radio" name="nivel" value="2 METRO"> 2 METRO<br>
+    <input type="radio" name="nivel" value="3 METRO"> 3 METRO<br><br>
+
+    <label>Supervisión del Predio:</label>
+    <input type="radio" name="supervision" value="BIEN" required> BIEN<br>
+    <input type="radio" name="supervision" value="ANOMALÍA"> ANOMALÍA<br><br>
+
+    <label for="anomalia">Narrar Anomalía:</label>
+    <input type="text" id="anomalia" name="anomalia">
+
+    <label for="evidencia">Evidencia de Nivel y Predio:</label>
+    <input type="file" name="evidencia" id="evidencia" multiple>
+
+    <input type="hidden" name="latitud" id="latitud">
+    <input type="hidden" name="longitud" id="longitud">
+
+    <button type="submit">Enviar</button>
+  </form>
+
+  <p id="estado"></p>
+
+  <script>
+    // Captura automática de ubicación
+    window.onload = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            document.getElementById('latitud').value = pos.coords.latitude;
+            document.getElementById('longitud').value = pos.coords.longitude;
+          },
+          (err) => {
+            document.getElementById('estado').textContent = "Error al obtener ubicación: " + err.message;
+          }
+        );
+      } else {
+        document.getElementById('estado').textContent = "Este navegador no admite geolocalización.";
+      }
+    };
+
+    // Envío de datos (conexión a Google Apps Script o backend externo)
+    document.getElementById('tanqueForm').addEventListener('submit', function (e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+      fetch('https://script.google.com/macros/s/AKfycbwzEopfcYempr83Izz6dXLekPIq3v2hpuAEJtiQjWtrg0LCBoqltGLHbWx6DVLAcgHq/exec', {
+        method: 'POST',
+        body: formData
+      })
+      .then(response => response.text())
+      .then(result => {
+        document.getElementById('estado').textContent = "Formulario enviado correctamente.";
+        document.getElementById('tanqueForm').reset();
+      })
+      .catch(error => {
+        document.getElementById('estado').textContent = "Error al enviar el formulario.";
+      });
+    });
+  </script>
+</body>
+</html>
