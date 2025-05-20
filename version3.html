@@ -1,0 +1,72 @@
+<!-- version3.html -->
+<!DOCTYPE html><html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Revisión de Tanques</title></head>
+<body>
+<h2>REVISIÓN DE TANQUES SUPERFICIALES</h2>
+
+<form id="tanqueForm">
+  <!-- …tus campos Tanque / Nivel / Supervisión / Anomalía … -->
+
+  <label>Evidencia (imagen):</label>
+  <input type="file" id="evidencia" accept="image/*" required><br><br>
+
+  <input type="hidden" name="latitud"  id="latitud">
+  <input type="hidden" name="longitud" id="longitud">
+  <button type="submit">Enviar</button>
+</form>
+
+<p id="estado"></p>
+
+<script>
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxlzpcKSAVJTieRhyGSdwbAqOYifD7YiSIl9vUa-TMOkXSOE8mDYerQJcKlKOqLaPeO/exec";
+
+window.onload = () =>{
+  navigator.geolocation?.getCurrentPosition(
+    p=>{
+      latitud.value  = p.coords.latitude;
+      longitud.value = p.coords.longitude;
+    },
+    e=>alert("Sin GPS: "+e.message)
+  );
+};
+
+tanqueForm.addEventListener("submit", async e=>{
+  e.preventDefault();
+  const file = evidencia.files[0];
+  if(!file){ alert("Selecciona una imagen"); return; }
+
+  // leemos el archivo como base‑64
+  const base64 = await new Promise(res=>{
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(",")[1]);    // quitamos encabezado data:
+    r.readAsDataURL(file);
+  });
+
+  // armamos los datos
+  const data = {
+    tanque     : tanque.value,
+    nivel      : document.querySelector("[name=nivel]:checked")?.value || "",
+    supervision: document.querySelector("[name=supervision]:checked")?.value || "",
+    anomalia   : anomalia.value,
+    latitud    : latitud.value,
+    longitud   : longitud.value,
+    imgName    : file.name,
+    imgData    : base64        // <-- la foto en texto
+  };
+
+  // enviamos como JSON
+  fetch(WEBAPP_URL, {
+    method : "POST",
+    body   : JSON.stringify(data),
+    headers: {"Content-Type":"application/json"}
+  })
+  .then(r=>r.text())
+  .then(t=>{
+    estado.textContent = t.includes("OK") ? "Enviado ✔" : t;
+    tanqueForm.reset();
+  })
+  .catch(err=>estado.textContent="Error: "+err);
+});
+</script>
+</body></html>
