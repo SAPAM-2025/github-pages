@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Revisión de Tanques Superficiales</title>
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      max-width:600px;
+      margin:auto;
+      padding:20px;
+      background:#f5f7fa;
+      color:#333;
+    }
+    h2{ text-align:center;color:#2c3e50;margin-bottom:25px }
+    label{font-weight:bold;margin-top:15px;display:block}
+    input[type="text"],
+    select,
+    button{width:100%;padding:10px;font-size:1em;margin-bottom:15px;
+           border:1px solid #ccc;border-radius:5px}
+    .radio-group{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+    .radio-group label{display:flex;align-items:center;gap:5px;font-weight:normal}
+    button{background:#2c3e50;color:#fff;border:none;cursor:pointer}
+    button:hover{background:#1a242f}
+    #estado{text-align:center;font-weight:bold;margin-top:20px}
+    /* Botones cámara / galería */
+    .picBtn{display:flex;align-items:center;gap:8px;
+            background:#607d8b;color:#fff;padding:8px 12px;border-radius:4px;
+            cursor:pointer;font-weight:bold;width:max-content}
+    .picBtn.cam{background:#2c3e50}
+    input[type="file"]{display:none}
+  </style>
+</head>
+<body>
+  <h2>REVISIÓN DE TANQUES SUPERFICIALES</h2>
+
+  <form id="tanqueForm">
+    <!-- Tanque -->
+    <label for="tanque">Tanque:</label>
+    <select id="tanque" required>
+      <option value="">Seleccione…</option>
+      <option>GEMELOS</option><option>TANQUE 2</option><option>MEGA TANQUE</option>
+      <option>FRANCISCO VILLA</option><option>FONAPO</option>
+      <option>LUIS ORTEGA</option><option>BICENTENARIO</option>
+    </select>
+
+    <!-- Nivel -->
+    <label>Nivel del Tanque:</label>
+    <div class="radio-group">
+      <label><input type="radio" name="nivel" value="1 METRO" required> 1 METRO</label>
+      <label><input type="radio" name="nivel" value="2 METRO"> 2 METROS</label>
+      <label><input type="radio" name="nivel" value="3 METRO"> 3 METROS</label>
+    </div>
+
+    <!-- Supervisión -->
+    <label>Supervisión del Predio:</label>
+    <div class="radio-group">
+      <label><input type="radio" name="supervision" value="BIEN" required> BIEN</label>
+      <label><input type="radio" name="supervision" value="ANOMALÍA"> ANOMALÍA</label>
+    </div>
+
+    <!-- Anomalía -->
+    <label for="anomalia">Narrar Anomalía:</label>
+    <input type="text" id="anomalia" placeholder="Describe si aplica" />
+
+    <!-- Evidencia -->
+    <label>Evidencia (imagen):</label>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <!-- Botón cámara -->
+      <label class="picBtn cam">
+        📷 Tomar foto
+        <input type="file" id="camInput" accept="image/*" capture="environment">
+      </label>
+      <!-- Botón galería -->
+      <label class="picBtn">
+        🖼️ Elegir de galería
+        <input type="file" id="galInput" accept="image/*">
+      </label>
+    </div>
+
+    <!-- Coordenadas -->
+    <input type="hidden" id="latitud">
+    <input type="hidden" id="longitud">
+
+    <button type="submit">Enviar</button>
+  </form>
+
+  <p id="estado"></p>
+
+  <script>
+    /* URL de tu Web App */
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxA6n_CGGD7zB1nlL310mxQbfs4hU81DKkOAC5WNBUQHWmG2zFr7Skc6hjGyBRKwvSK/exec";
+
+    /* Obtener ubicación */
+    window.onload = () => {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          p => {
+            latitud.value  = p.coords.latitude;
+            longitud.value = p.coords.longitude;
+          },
+          err => alert("Ubicación no obtenida: " + err.message),
+          { enableHighAccuracy:true, timeout:8000 }
+        );
+      }
+    };
+
+    /* Enviar formulario */
+    tanqueForm.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const file = camInput.files[0] || galInput.files[0];
+      if(!file){ alert("Adjunta una imagen"); return; }
+
+      /* Convertir a Base64 */
+      const base64 = await new Promise(res=>{
+        const reader = new FileReader();
+        reader.onload = ()=>res(reader.result.split(',')[1]);
+        reader.readAsDataURL(file);
+      });
+
+      const data = {
+        tanque      : tanque.value,
+        nivel       : document.querySelector('input[name=nivel]:checked')?.value || "",
+        supervision : document.querySelector('input[name=supervision]:checked')?.value || "",
+        anomalia    : anomalia.value,
+        latitud     : latitud.value,
+        longitud    : longitud.value,
+        imgName     : file.name,
+        imgData     : base64
+      };
+
+      estado.textContent = "Enviando…";
+
+      fetch(WEBAPP_URL, {
+        method : "POST",
+        mode   : "no-cors",    // evita CORS pre-flight
+        body   : JSON.stringify(data)
+      })
+      .then(()=> estado.textContent = "¡Enviado correctamente!")
+      .catch(err=> estado.textContent = "Error: "+err);
+    });
+  </script>
+</body>
+</html>
