@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Supervisión de Pozos</title>
+<style>
+ body{font-family:Arial, sans-serif;max-width:620px;margin:auto;padding:20px;background:#f5f7fa}
+ h2{text-align:center;color:#2c3e50}
+ label{font-weight:bold;display:block;margin-top:15px}
+ input,select,button{width:100%;padding:10px;margin-bottom:12px;border:1px solid #ccc;border-radius:5px;font-size:1em}
+ .radio-group{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+ .radio-group label{display:flex;align-items:center;gap:5px;font-weight:normal}
+ button{background:#2c3e50;color:#fff;border:none;cursor:pointer}
+ button:hover{background:#1a242f}
+ .picBtn{display:flex;align-items:center;gap:8px;background:#607d8b;color:#fff;
+         padding:8px 12px;border-radius:4px;cursor:pointer;font-weight:bold;width:max-content;margin-bottom:10px}
+ .picBtn.cam{background:#2c3e50}
+ input[type=file]{display:none}
+ #estado{text-align:center;font-weight:bold;margin-top:20px}
+</style>
+</head>
+<body>
+
+<h2>SUPERVISIÓN DE POZOS</h2>
+
+<form id="pozoForm">
+  <!-- POZO -->
+  <label for="pozo">Pozo:</label>
+  <select id="pozo" required>
+    <option value="">Seleccione…</option>
+    <option>CENTRO</option><option>SEGURO SOCIAL</option><option>DEPORTIVA</option>
+    <option>FRANCISCO VILLA</option><option>JARRÓN AZUL</option><option>MAGISTERIAL</option>
+    <option>DEMOCRACIA</option><option>MATAMOROS</option><option>NIÑOS HEROES</option>
+    <option>LAS HACIENDAS</option>
+  </select>
+
+  <!-- ¿Operando? -->
+  <label>¿Se encuentra operando?</label>
+  <div class="radio-group">
+    <label><input type="radio" name="operando" value="SÍ" required> Sí</label>
+    <label><input type="radio" name="operando" value="NO"> No</label>
+  </div>
+
+  <!-- Parámetros numéricos -->
+  <label for="voltaje">Voltaje del pozo (V):</label>
+  <input type="number" id="voltaje" placeholder="Ej. 440">
+
+  <label for="gasto">Gasto (l/s):</label>
+  <input type="number" id="gasto" placeholder="Ej. 30">
+
+  <label for="presion">Presión (psi):</label>
+  <input type="number" id="presion" placeholder="Ej. 45">
+
+  <!-- Anomalías -->
+  <label for="anomalias">Anomalías:</label>
+  <input type="text" id="anomalias" placeholder="Describe cualquier anomalía">
+
+  <!-- Evidencias -->
+  <label>Evidencias (imagen):</label>
+  <label class="picBtn cam">📷 Tomar foto
+    <input type="file" id="camInput" accept="image/*" capture="environment">
+  </label>
+  <label class="picBtn">🖼️ Elegir de galería
+    <input type="file" id="galInput" accept="image/*">
+  </label>
+
+  <!-- Coordenadas -->
+  <input type="hidden" id="lat">
+  <input type="hidden" id="lon">
+
+  <button type="submit">Enviar</button>
+</form>
+
+<p id="estado"></p>
+
+<script>
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwx6xYzv256lXTcQyzykocnf-EXqN0dVb-R5KTTQf8SQp_CLJKrmN-Xa__oHrUwNy-6/exec";  // ← actualízala después
+
+/* Obtener ubicación */
+window.onload = () =>{
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      p=>{lat.value=p.coords.latitude; lon.value=p.coords.longitude;},
+      e=>alert("GPS no disponible: "+e.message),
+      {enableHighAccuracy:true,timeout:8000});
+  }
+};
+
+/* Enviar datos */
+pozoForm.addEventListener('submit', async e=>{
+  e.preventDefault();
+  const file = camInput.files[0] || galInput.files[0];
+  if(!file){alert("Adjunta una imagen");return;}
+
+  const base64 = await new Promise(res=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result.split(',')[1]);
+    r.readAsDataURL(file);
+  });
+
+  const data={
+    pozo        : pozo.value,
+    operando    : document.querySelector('input[name=operando]:checked')?.value || "",
+    voltaje     : voltaje.value,
+    gasto       : gasto.value,
+    presion     : presion.value,
+    anomalias   : anomalias.value,
+    latitud     : lat.value,
+    longitud    : lon.value,
+    imgName     : file.name,
+    imgData     : base64
+  };
+
+  estado.textContent="Enviando…";
+  fetch(WEBAPP_URL,{method:"POST",mode:"no-cors",body:JSON.stringify(data)})
+  .then(()=>{estado.textContent="¡Enviado!";pozoForm.reset();})
+  .catch(err=>estado.textContent="Error: "+err);
+});
+</script>
+</body>
+</html>
