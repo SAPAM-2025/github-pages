@@ -1,122 +1,229 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1.0" />
-<title>Supervisión de Pozos</title>
-<style>
- body{font-family:Arial, sans-serif;max-width:620px;margin:auto;padding:20px;background:#f5f7fa}
- h2{text-align:center;color:#2c3e50}
- label{font-weight:bold;display:block;margin-top:15px}
- input,select,button{width:100%;padding:10px;margin-bottom:12px;border:1px solid #ccc;border-radius:5px;font-size:1em}
- .radio-group{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
- .radio-group label{display:flex;align-items:center;gap:5px;font-weight:normal}
- button{background:#2c3e50;color:#fff;border:none;cursor:pointer}
- button:hover{background:#1a242f}
- .picBtn{display:flex;align-items:center;gap:8px;background:#607d8b;color:#fff;
-         padding:8px 12px;border-radius:4px;cursor:pointer;font-weight:bold;width:max-content;margin-bottom:10px}
- .picBtn.cam{background:#2c3e50}
- input[type=file]{display:none}
- #estado{text-align:center;font-weight:bold;margin-top:20px}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Supervisión de Pozos</title>
+
+  <!-- ========== ESTILOS BÁSICOS ========== -->
+  <style>
+    /* Contenedor principal */
+    body{
+      font-family: Arial, sans-serif;
+      max-width: 620px;          /* ancho máximo para que no se vea muy ancho en desktop */
+      margin: auto;
+      padding: 20px;
+      background: #f5f7fa;       /* gris muy claro */
+      color: #333;
+    }
+    /* Título */
+    h2{ text-align:center;color:#2c3e50 }
+
+    /* Etiquetas de texto (“Pozo:”, “Nivel…”) */
+    label{
+      font-weight:bold;
+      display:block;
+      margin-top:15px;
+    }
+
+    /* Inputs de texto / números / select / botón */
+    input[type="text"],
+    input[type="number"],
+    select,
+    button{
+      width:100%;
+      padding:10px;
+      margin-bottom:12px;
+      font-size:1em;
+      border:1px solid #ccc;
+      border-radius:5px;
+    }
+
+    /* Grupos de radios alineados */
+    .radio-group{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+    .radio-group label{        /* Cada pareja radio+texto */
+      display:flex;
+      align-items:center;
+      gap:5px;
+      font-weight:normal;
+    }
+
+    /* Botón enviar */
+    button{
+      background:#2c3e50;
+      color:#fff;
+      border:none;
+      cursor:pointer;
+    }
+    button:hover{ background:#1a242f }
+
+    /* Botones para foto / galería */
+    .picBtn{
+      display:flex;align-items:center;gap:8px;
+      background:#607d8b;color:#fff;
+      padding:8px 12px;border-radius:4px;
+      cursor:pointer;font-weight:bold;
+      width:max-content;
+      margin-bottom:10px;
+    }
+    .picBtn.cam{ background:#2c3e50 }
+    input[type=file]{ display:none }   /* Oculta el input real; solo vemos el botón estilizado */
+
+    /* Mensaje de estado */
+    #estado{ text-align:center;font-weight:bold;margin-top:20px }
+  </style>
 </head>
 <body>
 
-<h2>SUPERVISIÓN DE POZOS</h2>
+  <!-- ========== FORMULARIO ========== -->
+  <h2>SUPERVISIÓN DE POZOS</h2>
 
-<form id="pozoForm">
-  <!-- POZO -->
-  <label for="pozo">Pozo:</label>
-  <select id="pozo" required>
-    <option value="">Seleccione…</option>
-    <option>CENTRO</option><option>SEGURO SOCIAL</option><option>DEPORTIVA</option>
-    <option>FRANCISCO VILLA</option><option>JARRÓN AZUL</option><option>MAGISTERIAL</option>
-    <option>DEMOCRACIA</option><option>MATAMOROS</option><option>NIÑOS HEROES</option>
-    <option>LAS HACIENDAS</option>
-  </select>
+  <!-- ID pozoForm: lo usamos en JS -->
+  <form id="pozoForm">
 
-  <!-- ¿Operando? -->
-  <label>¿Se encuentra operando?</label>
-  <div class="radio-group">
-    <label><input type="radio" name="operando" value="SÍ" required> Sí</label>
-    <label><input type="radio" name="operando" value="NO"> No</label>
-  </div>
+    <!-- 1) SELECT “Pozo” -->
+    <label for="pozo">Pozo:</label>
+    <select id="pozo" required>
+      <!-- Cuando quieras agregar un nuevo pozo, 
+           solo añades otra <option> aquí -->
+      <option value="">Seleccione…</option>
+      <option>CENTRO</option>
+      <option>SEGURO SOCIAL</option>
+      <!-- … -->
+      <option>LAS HACIENDAS</option>
+    </select>
 
-  <!-- Parámetros numéricos -->
-  <label for="voltaje">Voltaje del pozo (V):</label>
-  <input type="number" id="voltaje" placeholder="Ej. 440">
+    <!-- 2) Grupo RADIO “Operando” -->
+    <label>¿Se encuentra operando?</label>
+    <div class="radio-group">
+      <!-- name="operando" agrupa los botones. 
+           Al añadir otro radio, usa el mismo name y un nuevo value -->
+      <label><input type="radio" name="operando" value="SÍ" required> Sí</label>
+      <label><input type="radio" name="operando" value="NO"> No</label>
+    </div>
 
-  <label for="gasto">Gasto (l/s):</label>
-  <input type="number" id="gasto" placeholder="Ej. 30">
+    <!-- 3) Input numérico “Voltaje” -->
+    <label for="voltaje">Voltaje del pozo (V):</label>
+    <input type="number" id="voltaje" placeholder="Ej. 440">
+    <!-- Para otro número (ej. Temperatura), duplica pattern:
+         label + input type=number con tu nuevo id -->
 
-  <label for="presion">Presión (psi):</label>
-  <input type="number" id="presion" placeholder="Ej. 45">
+    <!-- 4) Input numérico “Gasto” -->
+    <label for="gasto">Gasto (l/s):</label>
+    <input type="number" id="gasto" placeholder="Ej. 30">
 
-  <!-- Anomalías -->
-  <label for="anomalias">Anomalías:</label>
-  <input type="text" id="anomalias" placeholder="Describe cualquier anomalía">
+    <!-- 5) Input numérico “Presión” -->
+    <label for="presion">Presión (psi):</label>
+    <input type="number" id="presion" placeholder="Ej. 45">
 
-  <!-- Evidencias -->
-  <label>Evidencias (imagen):</label>
-  <label class="picBtn cam">📷 Tomar foto
-    <input type="file" id="camInput" accept="image/*" capture="environment">
-  </label>
-  <label class="picBtn">🖼️ Elegir de galería
-    <input type="file" id="galInput" accept="image/*">
-  </label>
+    <!-- 6) Texto “Anomalías” -->
+    <label for="anomalias">Anomalías:</label>
+    <input type="text" id="anomalias" placeholder="Describe cualquier anomalía">
 
-  <!-- Coordenadas -->
-  <input type="hidden" id="lat">
-  <input type="hidden" id="lon">
+    <!-- 7) Evidencia: Botón cámara y galería -->
+    <label>Evidencias (imagen):</label>
+    <!-- Botón cámara -->
+    <label class="picBtn cam">📷 Tomar foto
+      <input type="file" id="camInput" accept="image/*" capture="environment">
+    </label>
+    <!-- Botón galería -->
+    <label class="picBtn">🖼️ Elegir de galería
+      <input type="file" id="galInput" accept="image/*">
+    </label>
 
-  <button type="submit">Enviar</button>
-</form>
+    <!-- Coordenadas ocultas -->
+    <input type="hidden" id="lat">
+    <input type="hidden" id="lon">
 
-<p id="estado"></p>
+    <!-- Botón enviar -->
+    <button type="submit">Enviar</button>
+  </form>
 
-<script>
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwx6xYzv256lXTcQyzykocnf-EXqN0dVb-R5KTTQf8SQp_CLJKrmN-Xa__oHrUwNy-6/exec";  // ← actualízala después
+  <!-- Mensaje al usuario -->
+  <p id="estado"></p>
 
-/* Obtener ubicación */
-window.onload = () =>{
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(
-      p=>{lat.value=p.coords.latitude; lon.value=p.coords.longitude;},
-      e=>alert("GPS no disponible: "+e.message),
-      {enableHighAccuracy:true,timeout:8000});
+  <!-- ========== JAVASCRIPT ========== -->
+  <script>
+    /* URL del Web App (doPost). Cambia solo si vuelves a desplegar y la URL cambia. */
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwx6xYzv256lXTcQyzykocnf-EXqN0dVb-R5KTTQf8SQp_CLJKrmN-Xa__oHrUwNy-6/exec";
+
+    /* ---------- Capturar ubicación al cargar ---------- */
+    //window.onload = () =>{
+      //if('geolocation' in navigator){
+       // navigator.geolocation.getCurrentPosition(
+        //  p => { lat.value = p.coords.latitude; lon.value = p.coords.longitude; },
+         // err => alert("Ubicación no obtenida: "+err.message),
+        //  { enableHighAccuracy:true, timeout:8000 }
+       // );
+      //}
+    //};
+
+    /* ---------- Enviar formulario ---------- */
+    pozoForm.addEventListener('submit', async e=>{
+      e.preventDefault();  // evita recargar la página
+
+         // 🔽 Obtener ubicación justo antes de enviar
+  let latitude = "", longitude = "";
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 8000
+      });
+    });
+    latitude = position.coords.latitude;
+    longitude = position.coords.longitude;
+  } catch (err) {
+    alert("Ubicación no disponible: " + err.message);
+    return; // opcional: bloquear envío si no hay coordenadas
   }
-};
 
-/* Enviar datos */
-pozoForm.addEventListener('submit', async e=>{
-  e.preventDefault();
-  const file = camInput.files[0] || galInput.files[0];
-  if(!file){alert("Adjunta una imagen");return;}
 
-  const base64 = await new Promise(res=>{
-    const r=new FileReader();
-    r.onload=()=>res(r.result.split(',')[1]);
-    r.readAsDataURL(file);
-  });
+      /* Elegimos la imagen (cámara prioritaria) */
+      const file = camInput.files[0] || galInput.files[0];
+      if(!file){ alert("Adjunta una imagen"); return; }
 
-  const data={
-    pozo        : pozo.value,
-    operando    : document.querySelector('input[name=operando]:checked')?.value || "",
-    voltaje     : voltaje.value,
-    gasto       : gasto.value,
-    presion     : presion.value,
-    anomalias   : anomalias.value,
-    latitud     : lat.value,
-    longitud    : lon.value,
-    imgName     : file.name,
-    imgData     : base64
-  };
+      /* Convertir imagen a Base64 (Promise para esperar a FileReader) */
+      const base64 = await new Promise(res=>{
+        const reader = new FileReader();
+        reader.onload = ()=>res(reader.result.split(',')[1]); // quitamos prefijo data:
+        reader.readAsDataURL(file);
+      });
 
-  estado.textContent="Enviando…";
-  fetch(WEBAPP_URL,{method:"POST",mode:"no-cors",body:JSON.stringify(data)})
-  .then(()=>{estado.textContent="¡Enviado!";pozoForm.reset();})
-  .catch(err=>estado.textContent="Error: "+err);
-});
-</script>
+      /* ---------- Construir objeto con todos los campos ---------- */
+      const data = {
+        pozo       : pozo.value,
+        operando   : document.querySelector('input[name=operando]:checked')?.value || "",
+        voltaje    : voltaje.value,
+        gasto      : gasto.value,
+        presion    : presion.value,
+        anomalias  : anomalias.value,
+        latitud    : latitude,
+        longitud   : longitude,
+        imgName    : file.name,
+        imgData    : base64
+      };
+
+      estado.textContent = "Enviando…";
+
+      /* ---------- Envío al Web App ---------- */
+      fetch(WEBAPP_URL, {
+        method : "POST",
+        mode   : "no-cors",       // evita pre‑flight de CORS
+        body   : JSON.stringify(data)
+      })
+      .then(()=>{estado.textContent="¡Enviado correctamente!"; 
+        pozoForm.reset();})
+      .catch(err=> estado.textContent="Error: "+err );
+    });
+  </script>
 </body>
 </html>
+
+
+
