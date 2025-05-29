@@ -40,9 +40,13 @@
     <label for="tanque">Tanque:</label>
     <select id="tanque" required>
       <option value="">Seleccione…</option>
-      <option>GEMELOS</option><option>TANQUE 2</option><option>MEGA TANQUE</option>
-      <option>FRANCISCO VILLA</option><option>FONAPO</option>
-      <option>LUIS ORTEGA</option><option>BICENTENARIO</option>
+      <option>GEMELOS</option>
+      <option>TANQUE 2</option>
+      <option>MEGA TANQUE</option>
+      <option>FRANCISCO VILLA</option>
+      <option>FONAPO</option>
+      <option>LUIS ORTEGA</option>
+      <option>BICENTENARIO</option>
     </select>
 
     <!-- Nivel -->
@@ -93,22 +97,39 @@
     const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxA6n_CGGD7zB1nlL310mxQbfs4hU81DKkOAC5WNBUQHWmG2zFr7Skc6hjGyBRKwvSK/exec";
 
     /* Obtener ubicación */
-    window.onload = () => {
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          p => {
-            latitud.value  = p.coords.latitude;
-            longitud.value = p.coords.longitude;
-          },
-          err => alert("Ubicación no obtenida: " + err.message),
-          { enableHighAccuracy:true, timeout:8000 }
-        );
-      }
-    };
+   // window.onload = () => {
+     // if ('geolocation' in navigator) {
+      //  navigator.geolocation.getCurrentPosition(
+      //    p => {
+        //    latitud.value  = p.coords.latitude;
+         //   longitud.value = p.coords.longitude;
+         // },
+         // err => alert("Ubicación no obtenida: " + err.message),
+         // { enableHighAccuracy:true, timeout:8000 }
+       // );
+     // }
+   // };
 
     /* Enviar formulario */
     tanqueForm.addEventListener('submit', async e=>{
       e.preventDefault();
+
+   // 🔽 Obtener ubicación justo antes de enviar
+  let latitude = "", longitude = "";
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 8000
+      });
+    });
+    latitude = position.coords.latitude;
+    longitude = position.coords.longitude;
+  } catch (err) {
+    alert("Ubicación no disponible: " + err.message);
+    return; // opcional: bloquear envío si no hay coordenadas
+  }
+
       const file = camInput.files[0] || galInput.files[0];
       if(!file){ alert("Adjunta una imagen"); return; }
 
@@ -124,8 +145,8 @@
         nivel       : document.querySelector('input[name=nivel]:checked')?.value || "",
         supervision : document.querySelector('input[name=supervision]:checked')?.value || "",
         anomalia    : anomalia.value,
-        latitud     : latitud.value,
-        longitud    : longitud.value,
+        latitud     : latitude,
+        longitud    : longitude,
         imgName     : file.name,
         imgData     : base64
       };
