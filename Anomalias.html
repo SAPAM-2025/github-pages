@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Revisión por Anomalías</title>
+<style>
+  body{font-family:Arial,sans-serif;max-width:640px;margin:auto;padding:20px;background:#f5f7fa;color:#333}
+  h2{text-align:center;color:#2c3e50}
+  label{font-weight:bold;display:block;margin-top:15px}
+  input,select,button{width:100%;padding:10px;margin-bottom:12px;border:1px solid #ccc;border-radius:5px;font-size:1em}
+  .radio-group{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .radio-group label{display:flex;align-items:center;gap:5px;font-weight:normal}
+  button{background:#2c3e50;color:#fff;border:none;cursor:pointer}
+  button:hover{background:#1a242f}
+  .picBtn{display:flex;align-items:center;gap:8px;background:#607d8b;color:#fff;padding:8px 12px;border-radius:4px;font-weight:bold;width:max-content;margin-bottom:10px;cursor:pointer}
+  .picBtn.cam{background:#2c3e50}
+  input[type=file]{display:none}
+  #estado{text-align:center;font-weight:bold;margin-top:20px}
+</style>
+</head>
+<body>
+<h2>REVISIÓN POR ANOMALÍAS</h2>
+
+<form id="anomForm">
+
+  <!-- Domicilio -->
+  <label for="domicilio">Domicilio:</label>
+  <input type="text" id="domicilio" required placeholder="Ej. Av. Hidalgo 123">
+
+  <!-- Tipo de anomalía -->
+  <label>Tipo de anomalía:</label>
+  <div class="radio-group">
+    <label><input type="radio" name="tipo" value="Clandestina" required>Clandestina</label>
+    <label><input type="radio" name="tipo" value="Auto reconexión">Auto reconexión</label>
+    <label><input type="radio" name="tipo" value="No clandestina / no auto reconexión">No aplica</label>
+  </div>
+
+  <!-- Descripción -->
+  <label for="descripcion">Describe la anomalía:</label>
+  <input type="text" id="descripcion" placeholder="Ej. Violó llave, puso manguera…">
+
+  <!-- Supervisor -->
+  <label>Supervisa:</label>
+  <select id="supervisa" required>
+    <option value="">Seleccione…</option>
+    <option>Adrián Juárez</option>
+    <option>Leo Rodríguez Zavala</option>
+    <option>Itzel Viridiana Sierra García</option>
+  </select>
+
+  <!-- Reincidencias y número de orden -->
+  <label for="reincidencias">No. de reincidencias:</label>
+  <input type="number" id="reincidencias" step="any">
+
+  <label for="orden">No. de orden:</label>
+  <input type="number" id="orden" step="any">
+
+  <!-- Evidencia fotográfica -->
+  <label>Evidencia (imagen):</label>
+  <label class="picBtn cam">📷 Tomar foto
+    <input type="file" id="camInput" accept="image/*" capture="environment">
+  </label>
+  <label class="picBtn">🖼️ Elegir de galería
+    <input type="file" id="galInput" accept="image/*">
+  </label>
+
+  <button type="submit">Enviar</button>
+</form>
+
+<p id="estado"></p>
+
+<script>
+/* 🚨 Reemplaza con la URL /exec de TU nuevo Web App */
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycby3S0i8WjRsa5yeP2HHirljJFPGpSfHxXhbwDXrZ7iZVN9c72izqVYz9JSqJQCd2Hvn/exec";
+
+anomForm.addEventListener('submit', async e=>{
+  e.preventDefault();
+
+  /* 1. ubicación cada envío */
+  let lat="",lon="";
+  try{
+    const pos = await new Promise((ok,err)=>navigator.geolocation.getCurrentPosition(ok,err,{enableHighAccuracy:true,timeout:8000}));
+    lat=pos.coords.latitude; lon=pos.coords.longitude;
+  }catch(err){ alert("GPS no disponible: "+err.message); return; }
+
+  /* 2. imagen */
+  const file = camInput.files[0] || galInput.files[0];
+  if(!file){ alert("Adjunta una imagen"); return; }
+  const base64 = await new Promise(res=>{const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.readAsDataURL(file);});
+
+  /* 3. objeto de datos */
+  const data = {
+    domicilio   : domicilio.value,
+    tipo        : document.querySelector('input[name=tipo]:checked')?.value || "",
+    descripcion : descripcion.value,
+    supervisa   : supervisa.value,
+    reincidencias: reincidencias.value,
+    orden       : orden.value,
+    latitud     : lat,
+    longitud    : lon,
+    imgName     : file.name,
+    imgData     : base64
+  };
+
+  estado.textContent="Enviando…";
+
+  fetch(WEBAPP_URL,{method:"POST",mode:"no-cors",body:JSON.stringify(data)})
+  .then(()=>{estado.textContent="¡Enviado!"; anomForm.reset();})
+  .catch(err=>{console.warn(err); estado.textContent="Error en envío";});
+});
+</script>
+</body>
+</html>
