@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Control de Baches</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f2f2f2; padding: 20px; max-width: 640px; margin: auto; }
+    h2 { text-align: center; color: #2c3e50; }
+    label { font-weight: bold; margin-top: 10px; display: block; }
+    input, textarea, button {
+      width: 100%; padding: 10px; margin-bottom: 12px;
+      border: 1px solid #ccc; border-radius: 5px; font-size: 1em;
+    }
+    #estado { text-align: center; font-weight: bold; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h2>Control de Baches</h2>
+  <form id="bachesForm">
+
+    <label>Dirección o ubicación:</label>
+    <input type="text" id="ubicacion" required>
+
+    <label>Descripción del bache:</label>
+    <textarea id="descripcion" rows="3" required></textarea>
+
+    <label>Causa posible del bache:</label>
+    <input type="text" id="causa" required>
+
+    <label>📷 Foto ANTES de la reparación:</label>
+    <input type="file" id="fotoAntes" accept="image/*" capture="environment" required>
+
+    <label>📷 Foto DESPUÉS de la reparación:</label>
+    <input type="file" id="fotoDespues" accept="image/*" capture="environment" required>
+
+    <input type="hidden" id="latitud" />
+    <input type="hidden" id="longitud" />
+
+    <button type="submit">Enviar</button>
+  </form>
+
+  <p id="estado"></p>
+
+  <script>
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxSt9UjXIyLXkBeastlt21mObgBicwi92WgO6CjPMxqyMsceFO70Pm7pi5WrBQyfEkf/exec"; // Reemplazar con URL real
+
+    // Obtener coordenadas automáticamente
+    window.onload = () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        document.getElementById("latitud").value = pos.coords.latitude;
+        document.getElementById("longitud").value = pos.coords.longitude;
+      },
+      (err) => {
+        document.getElementById("estado").textContent = "Error al obtener ubicación: " + err.message;
+      },
+      {
+        enableHighAccuracy: true,  // ← Esta línea es la clave
+        timeout: 5000,
+        maximumAge: 0
+      }
+    );
+  } else {
+    document.getElementById("estado").textContent = "Este navegador no admite geolocalización.";
+  }
+};
+
+
+    document.getElementById("bachesForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+      const estado = document.getElementById("estado");
+
+      const fotoAntes = document.getElementById("fotoAntes").files[0];
+      const fotoDespues = document.getElementById("fotoDespues").files[0];
+      if (!fotoAntes || !fotoDespues) {
+        estado.textContent = "Faltan fotografías obligatorias.";
+        return;
+      }
+
+      const toBase64 = file => new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result.split(',')[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+
+      estado.textContent = "Enviando...";
+
+      const datos = {
+        ubicacion: document.getElementById("ubicacion").value,
+        descripcion: document.getElementById("descripcion").value,
+        causa: document.getElementById("causa").value,
+        latitud: document.getElementById("latitud").value,
+        longitud: document.getElementById("longitud").value,
+        fotoAntes: await toBase64(fotoAntes),
+        nombreAntes: fotoAntes.name,
+        fotoDespues: await toBase64(fotoDespues),
+        nombreDespues: fotoDespues.name
+      };
+
+      fetch(WEBAPP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify(datos)
+      }).then(() => {
+        estado.textContent = "Formulario enviado correctamente.";
+        document.getElementById("bachesForm").reset();
+      }).catch(err => {
+        estado.textContent = "Error al enviar el formulario.";
+        console.error(err);
+      });
+    });
+  </script>
+</body>
+</html>
