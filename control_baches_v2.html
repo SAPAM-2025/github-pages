@@ -82,7 +82,12 @@
   </div>
 
   <label>Descripción del bache:</label>
-  <textarea id="descripcion" rows="2" required></textarea>
+  <select id="descripcion" required>
+  <option value="">Seleccione el tipo de bache</option>
+  <option value="Asfalto">En Asfalto</option>
+  <option value="Concreto">En Concreto</option>
+  <option value="Piedra">En Piedra</option>
+  </select>
 
   <label>Ancho (metros):</label>
   <input type="number" id="ancho" step="any" required>
@@ -90,8 +95,8 @@
   <label>Largo (metros):</label>
   <input type="number" id="largo" step="any" required>
 
-  <label>Profundidad (metros):</label>
-  <input type="number" id="profundidad" step="any" required>
+  <!--<label>Profundidad (metros):</label> -->
+  <!-- <input type="number" id="profundidad" step="any" required> -->
 
   <label>📷 Evidencia fotográfica (obligatoria):</label>
   <label class="picBtn cam">📷 Tomar foto
@@ -146,7 +151,7 @@ document.getElementById("formBaches").addEventListener("submit", async function 
     descripcion: document.getElementById("descripcion").value,
     ancho: document.getElementById("ancho").value,
     largo: document.getElementById("largo").value,
-    profundidad: document.getElementById("profundidad").value,
+    // profundidad: document.getElementById("profundidad").value,
     latitud: lat,
     longitud: lon,
     imgName: file.name,
