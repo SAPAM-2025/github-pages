@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+<title>Control de Baches</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 640px; margin: auto; padding: 20px; background: #f5f7fa; color: #333; }
+  h2 { text-align: center; color: #2c3e50; }
+  label { font-weight: bold; display: block; margin-top: 15px; }
+  input, select, button, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; }
+  .picBtn { display: flex; align-items: center; gap: 8px; background: #607d8b; color: #fff; padding: 8px 12px; border-radius: 4px; font-weight: bold; width: max-content; margin-bottom: 10px; cursor: pointer; }
+  .picBtn.cam { background: #2c3e50; }
+  input[type=file] { display: none; }
+  #estado { text-align: center; font-weight: bold; margin-top: 20px; }
+</style>
+</head>
+<body>
+<h2>CONTROL DE BACHES</h2>
+
+<form id="formBaches">
+
+  <label>Calle:</label>
+  <input type="text" id="calle" required placeholder="Ej. Calle Hidalgo">
+
+  <label>Número:</label>
+  <input type="text" id="numero" required placeholder="Ej. 123">
+
+  <label>Colonia:</label>
+  <select id="colonia" required>
+<option value="">Seleccione una colonia</option>
+<option value="20 de Noviembre">20 de Noviembre</option>
+<option value="7 Luminarias">7 Luminarias</option>
+<option value="Ampliación 20 de Noviembre">Ampliación 20 de Noviembre</option>
+<option value="Centro">Centro</option>
+<option value="Camembaro">Camembaro</option>
+<option value="Ecologista">Ecologista</option>
+<option value="El Chorrito">El Chorrito</option>
+<option value="El Prado">El Prado</option>
+<option value="El Socorro">El Socorro</option>
+<option value="Emiliano Zapata">Emiliano Zapata</option>
+<option value="Francisco Villa">Francisco Villa</option>
+<option value="Granados">Granados</option>
+<option value="Ignacio Ramírez">Ignacio Ramírez</option>
+<option value="Industrial">Industrial</option>
+<option value="Isabel la Católica">Isabel la Católica</option>
+<option value="Jarrón Azul">Jarrón Azul</option>
+<option value="La Gallega">La Gallega</option>
+<option value="La Haciendita">La Haciendita</option>
+<option value="La Loma">La Loma</option>
+<option value="Labradores">Labradores</option>
+<option value="Lagunilla de Malpais">Lagunilla de Malpais</option>
+<option value="Las Fuentes">Las Fuentes</option>
+<option value="Las Haciendas">Las Haciendas</option>
+<option value="Lindavista">Lindavista</option>
+<option value="Loma Dorada">Loma Dorada</option>
+<option value="Los Pinos">Los Pinos</option>
+<option value="Luis Donaldo Colosio">Luis Donaldo Colosio</option>
+<option value="Magisterial">Magisterial</option>
+<option value="Malpais">Malpais</option>
+<option value="Manuel Serrano Vallejo">Manuel Serrano Vallejo</option>
+<option value="Miravalle">Miravalle</option>
+<option value="Molinito del Cerrito">Molinito del Cerrito</option>
+<option value="Morelos">Morelos</option>
+<option value="Pedregal de Malpais">Pedregal de Malpais</option>
+<option value="Praderas del Sol">Praderas del Sol</option>
+<option value="Rancho los Molina">Rancho los Molina</option>
+<option value="Ranchos Unidos">Ranchos Unidos</option>
+<option value="Residencial Magisterio">Residencial Magisterio</option>
+<option value="San José">San José</option>
+<option value="San Juanito">San Juanito</option>
+<option value="Santiago Malpais">Santiago Malpais</option>
+<option value="Santiago UCOC">Santiago UCOC</option>
+<option value="Tepamal">Tepamal</option>
+<option value="Valle Dorado">Valle Dorado</option>
+<option value="Otra">Otra</option>
+  </select>
+
+  <div id="otraColoniaBox" style="display:none;">
+    <label>Ingrese colonia:</label>
+    <input type="text" id="otraColonia" placeholder="Nombre de colonia no listada">
+  </div>
+
+  <label>Descripción del bache:</label>
+  <textarea id="descripcion" rows="2" required></textarea>
+
+  <label>Ancho (metros):</label>
+  <input type="number" id="ancho" step="any" required>
+
+  <label>Largo (metros):</label>
+  <input type="number" id="largo" step="any" required>
+
+  <label>Profundidad (metros):</label>
+  <input type="number" id="profundidad" step="any" required>
+
+  <label>📷 Evidencia fotográfica (obligatoria):</label>
+  <label class="picBtn cam">📷 Tomar foto
+    <input type="file" id="camInput" accept="image/*" capture="environment">
+  </label>
+  <label class="picBtn">🖼️ Elegir de galería
+    <input type="file" id="galInput" accept="image/*">
+  </label>
+
+  <button type="submit">Enviar</button>
+</form>
+
+<p id="estado"></p>
+
+<script>
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzsuiVP9D7GqlW143X9yYKA2M-2gxvzLsUAzI1rosH9TRQ7dDIDoT9ObBWxiIWgG1Dh/exec";
+
+document.getElementById("colonia").addEventListener("change", function () {
+  document.getElementById("otraColoniaBox").style.display = this.value === "Otra" ? "block" : "none";
+});
+
+document.getElementById("formBaches").addEventListener("submit", async function (e) {
+  e.preventDefault();
+
+  let lat = "", lon = "";
+  try {
+    const pos = await new Promise((ok, err) => navigator.geolocation.getCurrentPosition(ok, err, {
+      enableHighAccuracy: true, timeout: 8000, maximumAge: 0
+    }));
+    lat = pos.coords.latitude;
+    lon = pos.coords.longitude;
+  } catch (err) {
+    alert("No se pudo obtener la ubicación: " + err.message);
+    return;
+  }
+
+  const file = camInput.files[0] || galInput.files[0];
+  if (!file) {
+    alert("Debes adjuntar una imagen.");
+    return;
+  }
+  const base64 = await new Promise(res => {
+    const reader = new FileReader();
+    reader.onload = () => res(reader.result.split(',')[1]);
+    reader.readAsDataURL(file);
+  });
+
+  const data = {
+    calle: document.getElementById("calle").value,
+    numero: document.getElementById("numero").value,
+    colonia: document.getElementById("colonia").value === "Otra" ? document.getElementById("otraColonia").value : document.getElementById("colonia").value,
+    descripcion: document.getElementById("descripcion").value,
+    ancho: document.getElementById("ancho").value,
+    largo: document.getElementById("largo").value,
+    profundidad: document.getElementById("profundidad").value,
+    latitud: lat,
+    longitud: lon,
+    imgName: file.name,
+    imgData: base64
+  };
+
+  estado.textContent = "Enviando...";
+
+  fetch(WEBAPP_URL, {
+    method: "POST",
+    mode: "no-cors",
+    body: JSON.stringify(data)
+  }).then(() => {
+    estado.textContent = "Formulario enviado correctamente.";
+    document.getElementById("formBaches").reset();
+    document.getElementById("otraColoniaBox").style.display = "none";
+  }).catch(err => {
+    estado.textContent = "Error al enviar el formulario.";
+    console.error(err);
+  });
+});
+</script>
+</body>
+</html>
