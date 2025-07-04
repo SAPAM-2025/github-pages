@@ -146,7 +146,7 @@ document.getElementById("formBaches").addEventListener("submit", async function 
   let lat = "", lon = "";
   try {
     const pos = await new Promise((ok, err) => navigator.geolocation.getCurrentPosition(ok, err, {
-      enableHighAccuracy: true, timeout: 8000, maximumAge: 0
+      enableHighAccuracy: true, timeout: 4000, maximumAge: 0
     }));
     lat = pos.coords.latitude;
     lon = pos.coords.longitude;
