@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Captura de Evidencias (2 fotos + GPS)</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 640px; margin: auto; padding: 20px; background: #f5f7fa; color: #333; }
+    h2 { text-align: center; color: #2c3e50; }
+    label { font-weight: bold; display: block; margin-top: 15px; }
+    input, select, button, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1em; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .picBtn { display: inline-flex; align-items: center; gap: 8px; background: #607d8b; color: #fff; padding: 8px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 10px; cursor: pointer; }
+    .picBtn.cam { background: #2c3e50; }
+    input[type=file] { display: none; }
+    #estado { text-align: center; font-weight: bold; margin-top: 16px; }
+    .preview { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+    .preview img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
+    .help { font-size: .9em; color: #666; margin-top: -8px; }
+    .gps { background: #eef6ff; border: 1px dashed #9bbcf7; border-radius: 8px; padding: 10px; font-size: .95em; }
+  </style>
+</head>
+<body>
+  <h2>CAPTURA DE EVIDENCIAS DE MEDIDORES DENTRO</h2>
+
+  <form id="formCap">
+    <!-- Reparto + Autocompletado -->
+    <label>Reparto</label>
+    <input id="reparto" list="repartosList" placeholder="Escribe o selecciona el reparto" required>
+    <datalist id="repartosList"></datalist>
+
+    <label>Usuario (se autocompleta)</label>
+    <input id="usuario" type="text" placeholder="Nombre de usuario" readonly>
+    <input id="domicilioOriginal" type="hidden">
+
+    <label>Calle</label>
+    <input type="text" id="calle" placeholder="Ej. Calle Hidalgo" required>
+
+    <label>Número</label>
+    <input type="text" id="numero" placeholder="Ej. 123" required>
+
+    <label>Colonia</label>
+    <select id="colonia" required>
+      <option value="">Seleccione una colonia</option>
+      <option value="20 de Noviembre">20 de Noviembre</option>
+      <option value="7 Luminarias">7 Luminarias</option>
+      <option value="Ampliación 20 de Noviembre">Ampliación 20 de Noviembre</option>
+      <option value="Centro">Centro</option>
+      <option value="Camembaro">Camembaro</option>
+      <option value="Ecologista">Ecologista</option>
+      <option value="El Chorrito">El Chorrito</option>
+      <option value="El Prado">El Prado</option>
+      <option value="El Socorro">El Socorro</option>
+      <option value="Emiliano Zapata">Emiliano Zapata</option>
+      <option value="Francisco Villa">Francisco Villa</option>
+      <option value="Granados">Granados</option>
+      <option value="Ignacio Ramírez">Ignacio Ramírez</option>
+      <option value="Industrial">Industrial</option>
+      <option value="Isabel la Católica">Isabel la Católica</option>
+      <option value="Jarrón Azul">Jarrón Azul</option>
+      <option value="La Gallega">La Gallega</option>
+      <option value="La Haciendita">La Haciendita</option>
+      <option value="La Loma">La Loma</option>
+      <option value="Labradores">Labradores</option>
+      <option value="Lagunilla de Malpais">Lagunilla de Malpais</option>
+      <option value="Las Fuentes">Las Fuentes</option>
+      <option value="Las Haciendas">Las Haciendas</option>
+      <option value="Lindavista">Lindavista</option>
+      <option value="Loma Dorada">Loma Dorada</option>
+      <option value="Los Pinos">Los Pinos</option>
+      <option value="Luis Donaldo Colosio">Luis Donaldo Colosio</option>
+      <option value="Magisterial">Magisterial</option>
+      <option value="Malpais">Malpais</option>
+      <option value="Manuel Serrano Vallejo">Manuel Serrano Vallejo</option>
+      <option value="Miravalle">Miravalle</option>
+      <option value="Molinito del Cerrito">Molinito del Cerrito</option>
+      <option value="Morelos">Morelos</option>
+      <option value="Pedregal de Malpais">Pedregal de Malpais</option>
+      <option value="Praderas del Sol">Praderas del Sol</option>
+      <option value="Rancho los Molina">Rancho los Molina</option>
+      <option value="Ranchos Unidos">Ranchos Unidos</option>
+      <option value="Residencial Magisterio">Residencial Magisterio</option>
+      <option value="San José">San José</option>
+      <option value="San Juanito">San Juanito</option>
+      <option value="Santiago Malpais">Santiago Malpais</option>
+      <option value="Santiago UCOC">Santiago UCOC</option>
+      <option value="Tepamal">Tepamal</option>
+      <option value="Valle Dorado">Valle Dorado</option>
+      <option value="Otra">Otra</option>
+    </select>
+
+    <div id="otraColoniaBox" style="display:none">
+      <label>Ingrese colonia</label>
+      <input type="text" id="otraColonia" placeholder="Nombre de colonia no listada">
+    </div>
+
+    <!-- Si usas "Condición", déjalo; si lo quitas, no rompe -->
+    <!--
+    <label>Condición</label>
+    <select id="condicion" required>
+      <option value="">Seleccione…</option>
+      <option>Bueno</option>
+      <option>Malo</option>
+      <option>Crítico</option>
+    </select>
+    -->
+
+    <label>Medidor dentro</label>
+    <select id="medidorDentro" required>
+      <option value="">Seleccione…</option>
+      <option>medidor dentro no abren</option>
+      <option>medidor dentro si se toma lectura</option>
+      <option>medidor dentro nuevo</option>
+    </select>
+
+    <label>Etiquetas tipo med</label>
+    <select id="etiquetasTipoMed" required>
+      <option value="">Seleccione…</option>
+      <option>Volumétrico</option>
+      <option>velocidad</option>
+    </select>
+
+    <!-- GPS -->
+    <label>Ubicación (GPS)</label>
+    <div class="gps" id="gpsBox">Pendiente… presiona "Obtener GPS"</div>
+    <div class="row">
+      <button type="button" id="btnGPS">Obtener GPS</button>
+      <button type="button" id="btnGPSRetry">Reintentar GPS</button>
+    </div>
+
+    <!-- FOTO 1 -->
+    <label>📷 Foto 1 (obligatoria)</label>
+    <span class="help">Ejemplo: detalle del Medidor</span>
+    <div class="row">
+      <label class="picBtn cam">📷 Tomar foto
+        <input type="file" id="cam1" accept="image/*" capture="environment">
+      </label>
+      <label class="picBtn">🖼️ Galería
+        <input type="file" id="gal1" accept="image/*">
+      </label>
+    </div>
+    <div class="preview" id="prev1"></div>
+
+    <!-- FOTO 2 -->
+    <label>📷 Foto 2 (obligatoria)</label>
+    <span class="help">Ejemplo: fachada/entorno</span>
+    <div class="row">
+      <label class="picBtn cam">📷 Tomar foto
+        <input type="file" id="cam2" accept="image/*" capture="environment">
+      </label>
+      <label class="picBtn">🖼️ Galería
+        <input type="file" id="gal2" accept="image/*">
+      </label>
+    </div>
+    <div class="preview" id="prev2"></div>
+
+    <button type="submit">Enviar</button>
+  </form>
+
+  <p id="estado"></p>
+
+  <script>
+    // URL de tu WebApp (sirve para POST y para GET del catálogo)
+    const WEBAPP_URL = "https://script.google.com/macros/s/AKfycby7rfxF1tJmpAJo8nG340tiQT4K6PDivPPVMF0Uh56qUAQUSATLn-e5iKIXEni-3eFmhA/exec";
+
+    const coloniaSel = document.getElementById('colonia');
+    const otraColoniaBox = document.getElementById('otraColoniaBox');
+    coloniaSel.addEventListener('change', () => {
+      otraColoniaBox.style.display = coloniaSel.value === 'Otra' ? 'block' : 'none';
+    });
+
+    /* ======== CATÁLOGO: reparto → {usuario, domicilio, colonia} ======== */
+    let CATALOGO = [];                 // array
+    let IDX_REPARTO = new Map();       // Map(reparto -> objeto)
+
+    async function cargarCatalogo(){
+      try{
+        const r = await fetch(WEBAPP_URL + (WEBAPP_URL.includes('?') ? '&' : '?') + 'action=catalog', { method:'GET' });
+        const data = await r.json();
+        if(Array.isArray(data)){
+          CATALOGO = data;
+          IDX_REPARTO = new Map(CATALOGO.map(o => [String(o.reparto), o]));
+          // Popular datalist
+          const dl = document.getElementById('repartosList');
+          dl.innerHTML = '';
+          const frag = document.createDocumentFragment();
+          for(const o of CATALOGO){
+            const opt = document.createElement('option');
+            opt.value = o.reparto;
+            opt.label = o.usuario ? `${o.reparto} — ${o.usuario}` : o.reparto;
+            frag.appendChild(opt);
+          }
+          dl.appendChild(frag);
+        } else {
+          console.warn('Catálogo: respuesta no es array', data);
+        }
+      }catch(e){
+        console.warn('No se pudo cargar catálogo:', e);
+      }
+    }
+
+    function splitDomicilio(dom){
+      const m = String(dom || '').trim().match(/^(.*?)[\s#,-]*([0-9]+[A-Za-z]?)$/);
+      if(m) return { calle: m[1].trim(), numero: m[2].trim() };
+      return { calle: String(dom || '').trim(), numero: '' };
+    }
+
+    function aplicarReparto(rep){
+      const o = IDX_REPARTO.get(String(rep));
+      if(!o) return;
+      document.getElementById('usuario').value = o.usuario || '';
+      document.getElementById('domicilioOriginal').value = o.domicilio || '';
+
+      if(o.domicilio){
+        const {calle, numero} = splitDomicilio(o.domicilio);
+        document.getElementById('calle').value = calle;
+        document.getElementById('numero').value = numero;
+      }
+
+      const col = (o.colonia || '').trim();
+      if(col){
+        let found=false;
+        for(const opt of coloniaSel.options){ if(opt.value === col){ found=true; break; } }
+        const otraInput = document.getElementById('otraColonia');
+        if(found){ coloniaSel.value = col; otraColoniaBox.style.display='none'; otraInput.value=''; }
+        else { coloniaSel.value='Otra'; otraColoniaBox.style.display='block'; otraInput.value = col; }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarCatalogo(); // intenta cargar al abrir
+      const repInput = document.getElementById('reparto');
+      repInput.addEventListener('change', () => aplicarReparto(repInput.value));
+      repInput.addEventListener('blur',   () => aplicarReparto(repInput.value));
+    });
+
+    /* ======================== GPS ======================== */
+    let lat = '', lon = '', acc = '';
+    const gpsBox = document.getElementById('gpsBox');
+    document.getElementById('btnGPS').addEventListener('click', getGPS);
+    document.getElementById('btnGPSRetry').addEventListener('click', getGPS);
+
+    async function getGPS(){
+      gpsBox.textContent = 'Obteniendo ubicación…';
+      try{
+        const pos = await new Promise((ok, err) => navigator.geolocation.getCurrentPosition(ok, err, {
+          enableHighAccuracy: true, timeout: 7000, maximumAge: 0
+        }));
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+        acc = pos.coords.accuracy;
+        gpsBox.textContent = `Lat: ${lat.toFixed(6)}  |  Lon: ${lon.toFixed(6)}  |  ±${Math.round(acc)} m`;
+      }catch(e){
+        gpsBox.textContent = 'No se pudo obtener ubicación: ' + e.message;
+      }
+    }
+
+    /* ======= Utilidades imagen (compresión a máx 1600px) ======= */
+    function readImageAsBase64(file, maxSide=1600){
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            let { width, height } = img;
+            const scale = Math.min(1, maxSide / Math.max(width, height));
+            if(scale < 1){
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.round(width * scale);
+              canvas.height = Math.round(height * scale);
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve({ name: file.name, data: canvas.toDataURL('image/jpeg', 0.85).split(',')[1] });
+            } else {
+              resolve({ name: file.name, data: reader.result.split(',')[1] });
+            }
+          };
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // —— Previews ——
+    function setPreview(containerId, dataUrl){
+      const cont = document.getElementById(containerId);
+      cont.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      cont.appendChild(img);
+    }
+
+    const cam1 = document.getElementById('cam1');
+    const gal1 = document.getElementById('gal1');
+    const cam2 = document.getElementById('cam2');
+    const gal2 = document.getElementById('gal2');
+
+    let foto1File = null, foto2File = null;
+
+    cam1.addEventListener('change', e => {
+      const f = e.target.files[0]; if(!f) return; foto1File = f; previewFile(f, 'prev1');
+    });
+    gal1.addEventListener('change', e => {
+      const f = e.target.files[0]; if(!f) return; foto1File = f; previewFile(f, 'prev1');
+    });
+    cam2.addEventListener('change', e => {
+      const f = e.target.files[0]; if(!f) return; foto2File = f; previewFile(f, 'prev2');
+    });
+    gal2.addEventListener('change', e => {
+      const f = e.target.files[0]; if(!f) return; foto2File = f; previewFile(f, 'prev2');
+    });
+
+    function previewFile(f, target){
+      const r = new FileReader();
+      r.onload = () => setPreview(target, r.result);
+      r.readAsDataURL(f);
+    }
+
+    /* ===================== Envío ===================== */
+    const form = document.getElementById('formCap');
+    const estado = document.getElementById('estado');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if(!lat || !lon){ alert('Primero obtén el GPS.'); return; }
+      if(!foto1File || !foto2File){ alert('Debes adjuntar las dos fotos.'); return; }
+
+      estado.textContent = 'Procesando fotos…';
+
+      try{
+        const [img1, img2] = await Promise.all([
+          readImageAsBase64(foto1File, 1600),
+          readImageAsBase64(foto2File, 1600)
+        ]);
+
+        const payload = {
+          // Nuevos (catálogo):
+          reparto: document.getElementById('reparto').value.trim(),
+          usuario: document.getElementById('usuario').value.trim(),
+          domicilio_original: document.getElementById('domicilioOriginal').value.trim(),
+
+          // Datos de dirección (puedes renombrar según tu hoja):
+          calle: document.getElementById('calle').value.trim(),
+          numero: document.getElementById('numero').value.trim(),
+          colonia: (coloniaSel.value === 'Otra'
+                    ? (document.getElementById('otraColonia').value.trim() || 'Otra')
+                    : coloniaSel.value),
+
+          // Opcionales:
+          condicion: document.getElementById('condicion')?.value || "",
+          medidor_dentro: document.getElementById('medidorDentro').value,
+          etiquetas_tipo_med: document.getElementById('etiquetasTipoMed').value,
+
+          // GPS:
+          latitud: lat,
+          longitud: lon,
+          precision_m: acc,
+
+          // Fotos:
+          img1Name: img1.name,
+          img1Data: img1.data,
+          img2Name: img2.name,
+          img2Data: img2.data,
+
+          // Extra:
+          timestamp: new Date().toISOString(),
+          appVersion: 'frontend-2fotos-gps-v1'
+        };
+
+        estado.textContent = 'Enviando…';
+
+        await fetch(WEBAPP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: JSON.stringify(payload)
+        });
+
+        estado.textContent = 'Formulario enviado correctamente.';
+        form.reset();
+        document.getElementById('prev1').innerHTML='';
+        document.getElementById('prev2').innerHTML='';
+        gpsBox.textContent = 'Pendiente… presiona "Obtener GPS"';
+        lat=lon=acc='';
+      }catch(err){
+        console.error(err);
+        estado.textContent = 'Error al procesar/enviar: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
