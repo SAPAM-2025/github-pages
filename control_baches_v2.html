@@ -114,13 +114,21 @@
 <script>
 const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxSt9UjXIyLXkBeastlt21mObgBicwi92WgO6CjPMxqyMsceFO70Pm7pi5WrBQyfEkf/exec";
 
-document.getElementById("colonia").addEventListener("change", function () {
-  document.getElementById("otraColoniaBox").style.display = this.value === "Otra" ? "block" : "none";
+const coloniaSel  = document.getElementById("colonia");
+const otraBox     = document.getElementById("otraColoniaBox");
+const otraColonia = document.getElementById("otraColonia");
+const camInput    = document.getElementById("camInput");
+const galInput    = document.getElementById("galInput");
+const estado      = document.getElementById("estado");
+
+coloniaSel.addEventListener("change", () => {
+  otraBox.style.display = coloniaSel.value === "Otra" ? "block" : "none";
 });
 
-document.getElementById("formBaches").addEventListener("submit", async function (e) {
+document.getElementById("formBaches").addEventListener("submit", async (e) => {
   e.preventDefault();
 
+  // GPS
   let lat = "", lon = "";
   try {
     const pos = await new Promise((ok, err) => navigator.geolocation.getCurrentPosition(ok, err, {
@@ -133,46 +141,58 @@ document.getElementById("formBaches").addEventListener("submit", async function 
     return;
   }
 
+  // Foto
   const file = camInput.files[0] || galInput.files[0];
-  if (!file) {
-    alert("Debes adjuntar una imagen.");
-    return;
-  }
-  const base64 = await new Promise(res => {
+  if (!file) { alert("Debes adjuntar una imagen."); return; }
+
+  const base64 = await new Promise((res) => {
     const reader = new FileReader();
-    reader.onload = () => res(reader.result.split(',')[1]);
+    reader.onload = () => {
+      const s = reader.result; // dataURL
+      res(s.startsWith("data:") ? s : s); // enviamos dataURL completo; el backend ya lo limpia
+    };
     reader.readAsDataURL(file);
   });
 
   const data = {
     calle: document.getElementById("calle").value,
     numero: document.getElementById("numero").value,
-    colonia: document.getElementById("colonia").value === "Otra" ? document.getElementById("otraColonia").value : document.getElementById("colonia").value,
+    colonia: coloniaSel.value === "Otra" ? otraColonia.value : coloniaSel.value,
     descripcion: document.getElementById("descripcion").value,
     ancho: document.getElementById("ancho").value,
     largo: document.getElementById("largo").value,
-    // profundidad: document.getElementById("profundidad").value,
     latitud: lat,
     longitud: lon,
     imgName: file.name,
-    imgData: base64
+    imgData: base64  // dataURL; el backend soporta ambas formas
   };
 
   estado.textContent = "Enviando...";
 
-  fetch(WEBAPP_URL, {
-    method: "POST",
-    mode: "no-cors",
-    body: JSON.stringify(data)
-  }).then(() => {
-    estado.textContent = "Formulario enviado correctamente.";
-    document.getElementById("formBaches").reset();
-    document.getElementById("otraColoniaBox").style.display = "none";
-  }).catch(err => {
+  try {
+    const resp = await fetch(WEBAPP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(data)
+    });
+    // Si por alguna razón el despliegue exige no-cors, vuelve a no-cors (pero perderás la lectura de respuesta)
+    const txt = await resp.text();
+    let json; try { json = JSON.parse(txt); } catch { json = {status:"ok"}; }
+
+    if (json.status === "ok") {
+      estado.textContent = "Formulario enviado correctamente.";
+      document.getElementById("formBaches").reset();
+      otraBox.style.display = "none";
+    } else {
+      estado.textContent = "Error: " + (json.message || "No se pudo guardar.");
+      console.error(json);
+    }
+  } catch (err) {
     estado.textContent = "Error al enviar el formulario.";
     console.error(err);
-  });
+  }
 });
 </script>
+
 </body>
 </html>
