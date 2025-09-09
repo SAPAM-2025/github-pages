@@ -13,6 +13,10 @@
   .picBtn.cam { background: #2c3e50; }
   input[type=file] { display: none; }
   #estado { text-align: center; font-weight: bold; margin-top: 20px; }
+
+  /* NUEVO: preview */
+  .preview { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 8px; }
+  .preview img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
 </style>
 </head>
 <body>
@@ -106,6 +110,9 @@
     <input type="file" id="galInput" accept="image/*">
   </label>
 
+  <!-- NUEVO: Preview -->
+  <div id="preview" class="preview"></div>
+
   <button type="submit">Enviar</button>
 </form>
 
@@ -120,10 +127,62 @@ const otraColonia = document.getElementById("otraColonia");
 const camInput    = document.getElementById("camInput");
 const galInput    = document.getElementById("galInput");
 const estado      = document.getElementById("estado");
+const previewBox  = document.getElementById("preview");
 
 coloniaSel.addEventListener("change", () => {
   otraBox.style.display = coloniaSel.value === "Otra" ? "block" : "none";
 });
+
+/* ===== NUEVO: mostrar preview al elegir imagen ===== */
+camInput.addEventListener("change", e => { if(e.target.files[0]) previewFile(e.target.files[0]); });
+galInput.addEventListener("change", e => { if(e.target.files[0]) previewFile(e.target.files[0]); });
+
+function previewFile(file){
+  const r = new FileReader();
+  r.onload = () => {
+    previewBox.innerHTML = "";
+    const img = document.createElement("img");
+    img.src = r.result;
+    img.alt = "Vista previa";
+    previewBox.appendChild(img);
+  };
+  r.readAsDataURL(file);
+}
+
+/* ===== NUEVO: compresión antes de enviar ===== */
+function readAndCompressAsDataURL(file, maxSide=1600, quality=0.85){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const url = reader.result; // dataURL original
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        const scale = Math.min(1, maxSide / Math.max(width, height));
+        if (scale < 1) {
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(width * scale);
+          canvas.height = Math.round(height * scale);
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          try {
+            const out = canvas.toDataURL("image/jpeg", quality);
+            resolve(out);
+          } catch (e) {
+            // Fallback si algo falla
+            resolve(url);
+          }
+        } else {
+          resolve(url);
+        }
+      };
+      img.onerror = reject;
+      img.src = url;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 document.getElementById("formBaches").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -145,14 +204,20 @@ document.getElementById("formBaches").addEventListener("submit", async (e) => {
   const file = camInput.files[0] || galInput.files[0];
   if (!file) { alert("Debes adjuntar una imagen."); return; }
 
-  const base64 = await new Promise((res) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const s = reader.result; // dataURL
-      res(s.startsWith("data:") ? s : s); // enviamos dataURL completo; el backend ya lo limpia
-    };
-    reader.readAsDataURL(file);
-  });
+  estado.textContent = "Procesando imagen…";
+  // NUEVO: comprimimos a dataURL (JPEG ~85%, máx 1600px)
+  let dataUrl;
+  try{
+    dataUrl = await readAndCompressAsDataURL(file, 1600, 0.85);
+  }catch(err){
+    console.warn("No se pudo comprimir, enviando original.", err);
+    // fallback: enviar original como dataURL
+    dataUrl = await new Promise((res) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result);
+      reader.readAsDataURL(file);
+    });
+  }
 
   const data = {
     calle: document.getElementById("calle").value,
@@ -164,7 +229,7 @@ document.getElementById("formBaches").addEventListener("submit", async (e) => {
     latitud: lat,
     longitud: lon,
     imgName: file.name,
-    imgData: base64  // dataURL; el backend soporta ambas formas
+    imgData: dataUrl  // dataURL (ya comprimido si aplicó)
   };
 
   estado.textContent = "Enviando...";
@@ -175,7 +240,6 @@ document.getElementById("formBaches").addEventListener("submit", async (e) => {
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(data)
     });
-    // Si por alguna razón el despliegue exige no-cors, vuelve a no-cors (pero perderás la lectura de respuesta)
     const txt = await resp.text();
     let json; try { json = JSON.parse(txt); } catch { json = {status:"ok"}; }
 
@@ -183,6 +247,7 @@ document.getElementById("formBaches").addEventListener("submit", async (e) => {
       estado.textContent = "Formulario enviado correctamente.";
       document.getElementById("formBaches").reset();
       otraBox.style.display = "none";
+      previewBox.innerHTML = ""; // limpiar preview
     } else {
       estado.textContent = "Error: " + (json.message || "No se pudo guardar.");
       console.error(json);
