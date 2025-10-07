@@ -19,46 +19,22 @@
     select,
     button{width:100%;padding:10px;font-size:1em;margin-bottom:15px;
            border:1px solid #ccc;border-radius:5px}
+    .hint{margin-top:-10px;margin-bottom:12px;font-size:.85em;color:#607d8b}
     .radio-group{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
     .radio-group label{display:flex;align-items:center;gap:5px;font-weight:normal}
     button{background:#2c3e50;color:#fff;border:none;cursor:pointer}
     button:hover{background:#1a242f}
     #estado{text-align:center;font-weight:bold;margin-top:20px}
-    /* Botones cámara / galería */
-    .picBtn{display:flex;align-items:center;gap:8px;
-            background:#607d8b;color:#fff;padding:8px 12px;border-radius:4px;
-            cursor:pointer;font-weight:bold;width:max-content}
+    .picBtn{display:flex;align-items:center;gap:8px;background:#607d8b;
+            color:#fff;padding:8px 12px;border-radius:4px;cursor:pointer;
+            font-weight:bold;width:max-content}
     .picBtn.cam{background:#2c3e50}
     input[type="file"]{display:none}
-
-    /* ===== Miniaturas compactas y contextuales ===== */
-    .previewWrap{
-      display:none;
-      margin-top:8px;
-    }
-    .thumbBox{
-      width:180px;
-      height:120px;
-      border:1px dashed #b0bec5;
-      background:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:6px;
-      overflow:hidden;
-    }
-    .thumb{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-    }
-    .fileMeta{
-      font-size:0.85em;
-      color:#546e7a;
-      margin-top:4px;
-      line-height:1.2;
-    }
+    .previewWrap{display:none;margin-top:8px}
+    .thumbBox{width:180px;height:120px;border:1px dashed #b0bec5;background:#fff;
+              display:flex;align-items:center;justify-content:center;border-radius:6px;overflow:hidden}
+    .thumb{width:100%;height:100%;object-fit:cover;display:block}
+    .fileMeta{font-size:0.85em;color:#546e7a;margin-top:4px;line-height:1.2}
     .fileMeta .arrow{margin:0 4px}
   </style>
 </head>
@@ -79,6 +55,11 @@
       <option>BICENTENARIO</option>
     </select>
 
+    <!-- Iniciales supervisor -->
+    <label for="ini">Iniciales del supervisor:</label>
+    <input type="text" id="ini" maxlength="6" placeholder="Ej. JTR o NG" required>
+    <div class="hint">Solo letras, se guardan en MAYÚSCULAS (p.ej. JTR).</div>
+
     <!-- Nivel -->
     <label>Nivel del Tanque:</label>
     <div class="radio-group">
@@ -91,7 +72,7 @@
     <label>Supervisión del Predio:</label>
     <div class="radio-group">
       <label><input type="radio" name="supervision" value="BIEN" required> BIEN</label>
-      <label><input type="radio" name="supervision" value="ANOMALÍA"> ANOMALÍA</label>
+      <label><input type="radio" name="supervision" value="ANOMALIA"> ANOMALIA</label>
     </div>
 
     <!-- Anomalía -->
@@ -139,46 +120,44 @@
     const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxA6n_CGGD7zB1nlL310mxQbfs4hU81DKkOAC5WNBUQHWmG2zFr7Skc6hjGyBRKwvSK/exec";
 
     /* Parámetros de compresión */
-    const MAX_W = 1280;           // ancho máximo
-    const MAX_H = 960;            // alto máximo
-    const JPEG_QUALITY = 0.72;    // 0..1
+    const MAX_W = 1280;
+    const MAX_H = 960;
+    const JPEG_QUALITY = 0.72;
 
-    // Caches de blobs comprimidos (evita recomprimir al enviar)
-    let compressedCamBlob = null;
-    let compressedGalBlob = null;
-    let compressedCamName = null;
-    let compressedGalName = null;
+    let compressedCamBlob = null, compressedGalBlob = null;
+    let compressedCamName = null, compressedGalName = null;
 
-    // Helpers
-    function humanSize(bytes){
-      if (!bytes && bytes !== 0) return "";
-      const k = 1024;
-      const units = ["B","KB","MB","GB"];
-      const i = Math.floor(Math.log(bytes)/Math.log(k));
-      return (bytes/Math.pow(k,i)).toFixed(1) + " " + units[i];
+    // ===== Normalizadores =====
+    const rmDiacritics = (str)=> str.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    function normTankName(str){
+      return rmDiacritics(str.trim().toUpperCase())
+        .replace(/\s+/g,'-')           // espacios -> guión
+        .replace(/[^A-Z0-9\-]/g,'')    // solo A-Z 0-9 -
+        .replace(/\-+/g,'-');          // colapsar guiones
+    }
+    function normInitials(str){
+      return rmDiacritics(str.trim().toUpperCase()).replace(/[^A-Z]/g,'');
+    }
+    function two(n){ return n.toString().padStart(2,'0'); }
+    function nowStampLocal(){
+      const d = new Date();  // hora local del dispositivo (CDMX si el cel está así)
+      const Y = d.getFullYear();
+      const M = two(d.getMonth()+1);
+      const D = two(d.getDate());
+      const h = two(d.getHours());
+      const m = two(d.getMinutes());
+      const s = two(d.getSeconds());
+      return `${Y}-${M}-${D}_${h}-${m}-${s}`;
+    }
+    function randID8(){
+      // 8 hex chars (aleatorio)
+      const a = new Uint8Array(4);
+      crypto.getRandomValues(a);
+      return [...a].map(x=>x.toString(16).padStart(2,'0')).join('');
     }
 
-    function setPreview(origin, file, compressedBlob){
-      const isCam = origin === 'cam';
-      const wrap = document.getElementById(isCam ? 'previewCam' : 'previewGal');
-      const img  = document.getElementById(isCam ? 'thumbCam'   : 'thumbGal');
-      const meta = document.getElementById(isCam ? 'fileMetaCam' : 'fileMetaGal');
-
-      // Mostrar mini con la versión ORIGINAL (carga inmediata y fiel a lo que eligió)
-      const url = URL.createObjectURL(file);
-      img.src = url;
-      img.onload = () => URL.revokeObjectURL(url);
-
-      const originalTxt = `${file.name} • ${humanSize(file.size)}`;
-      const compTxt = compressedBlob
-        ? `→ <span class="arrow">⟶</span> Envío: ${humanSize(compressedBlob.size)}`
-        : '';
-      meta.innerHTML = `${originalTxt} ${compTxt}`;
-      wrap.style.display = 'block';
-    }
-
+    // ===== Compresión =====
     async function compressImage(file){
-      // Usa createImageBitmap para respetar orientación EXIF cuando esté disponible
       const bitmap = (window.createImageBitmap)
         ? await createImageBitmap(file, { imageOrientation: 'from-image' })
         : await new Promise((resolve, reject) => {
@@ -189,20 +168,17 @@
           });
 
       const ow = bitmap.width, oh = bitmap.height;
-      const scale = Math.min(MAX_W / ow, MAX_H / oh, 1); // nunca escalar hacia arriba
-      const w = Math.round(ow * scale);
-      const h = Math.round(oh * scale);
+      const scale = Math.min(MAX_W/ow, MAX_H/oh, 1);
+      const w = Math.round(ow * scale), h = Math.round(oh * scale);
 
       const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
+      canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(bitmap, 0, 0, w, h);
 
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', JPEG_QUALITY));
-      return blob || file; // fallback si algo falla
+      return blob || file;
     }
-
     function blobToBase64(blob){
       return new Promise((res, rej) => {
         const fr = new FileReader();
@@ -211,83 +187,132 @@
         fr.readAsDataURL(blob);
       });
     }
+    function humanSize(bytes){
+      if (!bytes && bytes !== 0) return "";
+      const k=1024,u=["B","KB","MB","GB"];const i=Math.floor(Math.log(bytes)/Math.log(k));
+      return (bytes/Math.pow(k,i)).toFixed(1)+" "+u[i];
+    }
 
-    // === PREVIEWS + COMPRESIÓN al seleccionar ===
+    // ===== Previews =====
+    function setPreview(origin, file, compressedBlob, finalName){
+      const isCam = origin==='cam';
+      const wrap = document.getElementById(isCam?'previewCam':'previewGal');
+      const img  = document.getElementById(isCam?'thumbCam':'thumbGal');
+      const meta = document.getElementById(isCam?'fileMetaCam':'fileMetaGal');
+
+      const url = URL.createObjectURL(file);
+      img.src = url;
+      img.onload = () => URL.revokeObjectURL(url);
+
+      const originalTxt = `${file.name} • ${humanSize(file.size)}`;
+      const compTxt = compressedBlob ? ` ⟶ Envío: ${humanSize(compressedBlob.size)}` : '';
+      const nameTxt = finalName ? `<br><b>Nombre final:</b> ${finalName}` : '';
+      meta.innerHTML = `${originalTxt}${compTxt}${nameTxt}`;
+      wrap.style.display = 'block';
+    }
+
+    // ===== Eventos de Inputs =====
+    ini.addEventListener('input', ()=> { ini.value = normInitials(ini.value); });
+
     camInput.addEventListener('change', async () => {
       if (camInput.files && camInput.files[0]) {
-        galInput.value = ''; // deseleccionar galería
+        galInput.value = '';
         const file = camInput.files[0];
 
-        // Comprimir y cachear
+        // Comprimir
         compressedCamBlob = await compressImage(file);
-        // Conserva el nombre original por ahora (renombraremos en Paso 3)
-        compressedCamName = file.name;
 
-        setPreview('cam', file, compressedCamBlob);
+        // Construir nombre final: <TANQUE>_<YYYY-MM-DD>_<HH-mm-ss>_<ESTADO>_<INI>_<ID8>.jpg
+        const tanqueNorm = normTankName(tanque.value || '');
+        const estado = document.querySelector('input[name=supervision]:checked')?.value || 'BIEN';
+        const iniNorm = normInitials(ini.value || '');
+        const stamp = nowStampLocal();
+        const id8 = randID8();
+        const finalName = `${tanqueNorm}_${stamp}_${estado}_${iniNorm}_${id8}.jpg`;
 
-        // Ocultar la otra preview
+        compressedCamName = finalName;
+
+        // Previo
         document.getElementById('previewGal').style.display = 'none';
-        compressedGalBlob = null;
-        compressedGalName = null;
+        compressedGalBlob = null; compressedGalName = null;
+        setPreview('cam', file, compressedCamBlob, finalName);
       }
     });
 
     galInput.addEventListener('change', async () => {
       if (galInput.files && galInput.files[0]) {
-        camInput.value = ''; // deseleccionar cámara
+        camInput.value = '';
         const file = galInput.files[0];
 
-        // Comprimir y cachear
+        // Comprimir
         compressedGalBlob = await compressImage(file);
-        compressedGalName = file.name;
 
-        setPreview('gal', file, compressedGalBlob);
+        // Nombre final
+        const tanqueNorm = normTankName(tanque.value || '');
+        const estado = document.querySelector('input[name=supervision]:checked')?.value || 'BIEN';
+        const iniNorm = normInitials(ini.value || '');
+        const stamp = nowStampLocal();
+        const id8 = randID8();
+        const finalName = `${tanqueNorm}_${stamp}_${estado}_${iniNorm}_${id8}.jpg`;
 
-        // Ocultar la otra preview
+        compressedGalName = finalName;
+
+        // Previo
         document.getElementById('previewCam').style.display = 'none';
-        compressedCamBlob = null;
-        compressedCamName = null;
+        compressedCamBlob = null; compressedCamName = null;
+        setPreview('gal', file, compressedGalBlob, finalName);
       }
     });
 
-    /* Enviar formulario */
+    // ===== Envío =====
     tanqueForm.addEventListener('submit', async e=>{
       e.preventDefault();
 
-      // 🔽 Obtener ubicación justo antes de enviar
+      // Validaciones básicas
+      if(!tanque.value){ alert("Selecciona un tanque"); return; }
+      if(!ini.value){ alert("Captura las iniciales del supervisor"); return; }
+      const iniNorm = normInitials(ini.value);
+      if(!iniNorm){ alert("Iniciales: usa solo letras A-Z"); return; }
+
+      // Ubicación
       let latitude = "", longitude = "";
       try {
         const position = await new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 8000
+            enableHighAccuracy: true, timeout: 8000
           });
         });
         latitude = position.coords.latitude;
         longitude = position.coords.longitude;
       } catch (err) {
         alert("Ubicación no disponible: " + err.message);
-        return; // opcional: bloquear envío si no hay coordenadas
-      }
-
-      // Determinar origen seleccionado y asegurar compresión lista
-      let blob = null;
-      let name = null;
-
-      if (camInput.files[0]) {
-        if (!compressedCamBlob) compressedCamBlob = await compressImage(camInput.files[0]);
-        blob = compressedCamBlob;
-        name = compressedCamName || camInput.files[0].name;
-      } else if (galInput.files[0]) {
-        if (!compressedGalBlob) compressedGalBlob = await compressImage(galInput.files[0]);
-        blob = compressedGalBlob;
-        name = compressedGalName || galInput.files[0].name;
-      } else {
-        alert("Adjunta una imagen"); 
         return;
       }
 
-      // A base64 (versión comprimida)
+      // Archivo comprimido + nombre final desde caché
+      let blob = null, name = null;
+      if (camInput.files[0]) {
+        if (!compressedCamBlob) compressedCamBlob = await compressImage(camInput.files[0]);
+        blob = compressedCamBlob;
+        name = compressedCamName; // ya generado en el change
+      } else if (galInput.files[0]) {
+        if (!compressedGalBlob) compressedGalBlob = await compressImage(galInput.files[0]);
+        blob = compressedGalBlob;
+        name = compressedGalName;
+      } else {
+        alert("Adjunta una imagen");
+        return;
+      }
+
+      // Asegurar que el nombre exista (por si cambiaron estado/ini después de seleccionar la imagen)
+      if(!name){
+        const tanqueNorm = normTankName(tanque.value || '');
+        const estado = document.querySelector('input[name=supervision]:checked')?.value || 'BIEN';
+        const stamp = nowStampLocal();
+        const id8 = randID8();
+        name = `${tanqueNorm}_${stamp}_${estado}_${iniNorm}_${id8}.jpg`;
+      }
+
       const base64 = await blobToBase64(blob);
 
       const data = {
@@ -297,7 +322,8 @@
         anomalia    : anomalia.value,
         latitud     : latitude,
         longitud    : longitude,
-        imgName     : name,      // (Paso 3 renombraremos aquí)
+        supervisor_ini : iniNorm,  // << también lo mandamos por si tu Apps Script lo guarda
+        imgName     : name,        // << nombre estandarizado
         imgData     : base64
       };
 
