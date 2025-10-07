@@ -30,6 +30,38 @@
             cursor:pointer;font-weight:bold;width:max-content}
     .picBtn.cam{background:#2c3e50}
     input[type="file"]{display:none}
+
+    /* ===== Miniatura de imagen ===== */
+    #previewWrap{
+      display:none;            /* se muestra cuando haya imagen */
+      margin: 8px 0 16px 0;
+    }
+    #previewLabel{
+      font-weight:600;
+      margin-bottom:6px;
+      color:#2c3e50;
+    }
+    #thumbBox{
+      width:100%;
+      max-height:260px;
+      border:1px dashed #b0bec5;
+      background:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:6px;
+      overflow:hidden;
+    }
+    #thumb{
+      width:100%;
+      height:100%;
+      object-fit:cover;        /* recorte agradable sin deformar */
+    }
+    #fileMeta{
+      font-size:0.9em;
+      color:#546e7a;
+      margin-top:6px;
+    }
   </style>
 </head>
 <body>
@@ -52,9 +84,9 @@
     <!-- Nivel -->
     <label>Nivel del Tanque:</label>
     <div class="radio-group">
-      <label><input type="radio" name="nivel" value="1 METRO" required> 1 METRO</label>
-      <label><input type="radio" name="nivel" value="2 METROS"> 2 METROS</label>
-      <label><input type="radio" name="nivel" value="3 METROS"> 3 METROS</label>
+      <label><input type="radio" name="nivel" value="1 METRO" required> 1 METRO</label>
+      <label><input type="radio" name="nivel" value="2 METROS"> 2 METROS</label>
+      <label><input type="radio" name="nivel" value="3 METROS"> 3 METROS</label>
     </div>
 
     <!-- Supervisión -->
@@ -70,7 +102,7 @@
 
     <!-- Evidencia -->
     <label>Evidencia (imagen):</label>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">
       <!-- Botón cámara -->
       <label class="picBtn cam">
         📷 Tomar foto
@@ -83,6 +115,15 @@
       </label>
     </div>
 
+    <!-- Miniatura -->
+    <div id="previewWrap">
+      <div id="previewLabel">Vista previa:</div>
+      <div id="thumbBox">
+        <img id="thumb" alt="Miniatura de la evidencia">
+      </div>
+      <div id="fileMeta"></div>
+    </div>
+
     <!-- Coordenadas -->
     <input type="hidden" id="latitud">
     <input type="hidden" id="longitud">
@@ -93,42 +134,83 @@
   <p id="estado"></p>
 
   <script>
-    /* URL de tu Web App */
+    /* URL de tu Web App */
     const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxA6n_CGGD7zB1nlL310mxQbfs4hU81DKkOAC5WNBUQHWmG2zFr7Skc6hjGyBRKwvSK/exec";
 
-    /* Obtener ubicación */
-   // window.onload = () => {
-     // if ('geolocation' in navigator) {
-      //  navigator.geolocation.getCurrentPosition(
-      //    p => {
-        //    latitud.value  = p.coords.latitude;
-         //   longitud.value = p.coords.longitude;
-         // },
-         // err => alert("Ubicación no obtenida: " + err.message),
-         // { enableHighAccuracy:true, timeout:8000 }
-       // );
-     // }
-   // };
+    // Helpers de miniatura
+    let lastObjectUrl = null;
+
+    function humanSize(bytes){
+      if (!bytes && bytes !== 0) return "";
+      const k = 1024;
+      const units = ["B","KB","MB","GB"];
+      const i = Math.floor(Math.log(bytes)/Math.log(k));
+      return (bytes/Math.pow(k,i)).toFixed(1) + " " + units[i];
+    }
+
+    function showPreview(file){
+      if(!file) return;
+
+      // Liberar URL previa si existía
+      if(lastObjectUrl){
+        URL.revokeObjectURL(lastObjectUrl);
+        lastObjectUrl = null;
+      }
+
+      // Crear URL y previsualizar
+      const objectUrl = URL.createObjectURL(file);
+      lastObjectUrl = objectUrl;
+
+      const thumb = document.getElementById('thumb');
+      const wrap  = document.getElementById('previewWrap');
+      const meta  = document.getElementById('fileMeta');
+
+      thumb.src = objectUrl;
+      thumb.onload = () => {
+        // revocar cuando ya cargó para evitar memory leak
+        URL.revokeObjectURL(objectUrl);
+        lastObjectUrl = null;
+      };
+
+      meta.textContent = `${file.name} • ${humanSize(file.size)} • ${file.type || 'imagen'}`;
+      wrap.style.display = 'block';
+    }
+
+    // Listeners para actualizar miniatura al elegir/tomar foto
+    camInput.addEventListener('change', () => {
+      if (camInput.files && camInput.files[0]) {
+        // Si tomó con cámara, limpiar selección de galería para evitar confusión
+        galInput.value = '';
+        showPreview(camInput.files[0]);
+      }
+    });
+
+    galInput.addEventListener('change', () => {
+      if (galInput.files && galInput.files[0]) {
+        camInput.value = '';
+        showPreview(galInput.files[0]);
+      }
+    });
 
     /* Enviar formulario */
     tanqueForm.addEventListener('submit', async e=>{
       e.preventDefault();
 
-   // 🔽 Obtener ubicación justo antes de enviar
-  let latitude = "", longitude = "";
-  try {
-    const position = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 8000
-      });
-    });
-    latitude = position.coords.latitude;
-    longitude = position.coords.longitude;
-  } catch (err) {
-    alert("Ubicación no disponible: " + err.message);
-    return; // opcional: bloquear envío si no hay coordenadas
-  }
+      // 🔽 Obtener ubicación justo antes de enviar
+      let latitude = "", longitude = "";
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 8000
+          });
+        });
+        latitude = position.coords.latitude;
+        longitude = position.coords.longitude;
+      } catch (err) {
+        alert("Ubicación no disponible: " + err.message);
+        return; // opcional: bloquear envío si no hay coordenadas
+      }
 
       const file = camInput.files[0] || galInput.files[0];
       if(!file){ alert("Adjunta una imagen"); return; }
