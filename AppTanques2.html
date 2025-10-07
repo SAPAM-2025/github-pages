@@ -31,19 +31,14 @@
     .picBtn.cam{background:#2c3e50}
     input[type="file"]{display:none}
 
-    /* ===== Miniatura de imagen ===== */
-    #previewWrap{
+    /* ===== Miniaturas compactas y contextuales ===== */
+    .previewWrap{
       display:none;            /* se muestra cuando haya imagen */
-      margin: 8px 0 16px 0;
+      margin-top:8px;
     }
-    #previewLabel{
-      font-weight:600;
-      margin-bottom:6px;
-      color:#2c3e50;
-    }
-    #thumbBox{
-      width:100%;
-      max-height:260px;
+    .thumbBox{
+      width:180px;             /* miniatura más pequeña */
+      height:120px;
       border:1px dashed #b0bec5;
       background:#fff;
       display:flex;
@@ -52,15 +47,16 @@
       border-radius:6px;
       overflow:hidden;
     }
-    #thumb{
+    .thumb{
       width:100%;
       height:100%;
       object-fit:cover;        /* recorte agradable sin deformar */
+      display:block;
     }
-    #fileMeta{
-      font-size:0.9em;
+    .fileMeta{
+      font-size:0.85em;
       color:#546e7a;
-      margin-top:6px;
+      margin-top:4px;
     }
   </style>
 </head>
@@ -102,26 +98,29 @@
 
     <!-- Evidencia -->
     <label>Evidencia (imagen):</label>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px">
-      <!-- Botón cámara -->
+
+    <!-- Zona de CÁMARA con su preview debajo -->
+    <div id="camZone" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
       <label class="picBtn cam">
         📷 Tomar foto
         <input type="file" id="camInput" accept="image/*" capture="environment">
       </label>
-      <!-- Botón galería -->
+      <div id="previewCam" class="previewWrap">
+        <div class="thumbBox"><img id="thumbCam" class="thumb" alt="Miniatura cámara"></div>
+        <div id="fileMetaCam" class="fileMeta"></div>
+      </div>
+    </div>
+
+    <!-- Zona de GALERÍA con su preview debajo -->
+    <div id="galZone" style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px">
       <label class="picBtn">
         🖼️ Elegir de galería
         <input type="file" id="galInput" accept="image/*">
       </label>
-    </div>
-
-    <!-- Miniatura -->
-    <div id="previewWrap">
-      <div id="previewLabel">Vista previa:</div>
-      <div id="thumbBox">
-        <img id="thumb" alt="Miniatura de la evidencia">
+      <div id="previewGal" class="previewWrap">
+        <div class="thumbBox"><img id="thumbGal" class="thumb" alt="Miniatura galería"></div>
+        <div id="fileMetaGal" class="fileMeta"></div>
       </div>
-      <div id="fileMeta"></div>
     </div>
 
     <!-- Coordenadas -->
@@ -137,8 +136,9 @@
     /* URL de tu Web App */
     const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxA6n_CGGD7zB1nlL310mxQbfs4hU81DKkOAC5WNBUQHWmG2zFr7Skc6hjGyBRKwvSK/exec";
 
-    // Helpers de miniatura
-    let lastObjectUrl = null;
+    // Helpers de miniatura (una por origen)
+    let lastUrlCam = null;
+    let lastUrlGal = null;
 
     function humanSize(bytes){
       if (!bytes && bytes !== 0) return "";
@@ -148,47 +148,60 @@
       return (bytes/Math.pow(k,i)).toFixed(1) + " " + units[i];
     }
 
-    function showPreview(file){
+    function showPreview(file, origin){
       if(!file) return;
 
-      // Liberar URL previa si existía
-      if(lastObjectUrl){
-        URL.revokeObjectURL(lastObjectUrl);
-        lastObjectUrl = null;
+      if(origin === 'cam'){
+        // limpiar otra
+        document.getElementById('previewGal').style.display = 'none';
+        if(lastUrlGal){ URL.revokeObjectURL(lastUrlGal); lastUrlGal = null; }
+
+        if(lastUrlCam){ URL.revokeObjectURL(lastUrlCam); lastUrlCam = null; }
+        const url = URL.createObjectURL(file);
+        lastUrlCam = url;
+
+        const img = document.getElementById('thumbCam');
+        const wrap = document.getElementById('previewCam');
+        const meta = document.getElementById('fileMetaCam');
+
+        img.src = url;
+        img.onload = () => { URL.revokeObjectURL(url); lastUrlCam = null; };
+        meta.textContent = `${file.name} • ${humanSize(file.size)} • ${file.type || 'imagen'}`;
+        wrap.style.display = 'block';
       }
 
-      // Crear URL y previsualizar
-      const objectUrl = URL.createObjectURL(file);
-      lastObjectUrl = objectUrl;
+      if(origin === 'gal'){
+        // limpiar otra
+        document.getElementById('previewCam').style.display = 'none';
+        if(lastUrlCam){ URL.revokeObjectURL(lastUrlCam); lastUrlCam = null; }
 
-      const thumb = document.getElementById('thumb');
-      const wrap  = document.getElementById('previewWrap');
-      const meta  = document.getElementById('fileMeta');
+        if(lastUrlGal){ URL.revokeObjectURL(lastUrlGal); lastUrlGal = null; }
+        const url = URL.createObjectURL(file);
+        lastUrlGal = url;
 
-      thumb.src = objectUrl;
-      thumb.onload = () => {
-        // revocar cuando ya cargó para evitar memory leak
-        URL.revokeObjectURL(objectUrl);
-        lastObjectUrl = null;
-      };
+        const img = document.getElementById('thumbGal');
+        const wrap = document.getElementById('previewGal');
+        const meta = document.getElementById('fileMetaGal');
 
-      meta.textContent = `${file.name} • ${humanSize(file.size)} • ${file.type || 'imagen'}`;
-      wrap.style.display = 'block';
+        img.src = url;
+        img.onload = () => { URL.revokeObjectURL(url); lastUrlGal = null; };
+        meta.textContent = `${file.name} • ${humanSize(file.size)} • ${file.type || 'imagen'}`;
+        wrap.style.display = 'block';
+      }
     }
 
-    // Listeners para actualizar miniatura al elegir/tomar foto
+    // Listeners: cada uno muestra su preview debajo del propio botón
     camInput.addEventListener('change', () => {
       if (camInput.files && camInput.files[0]) {
-        // Si tomó con cámara, limpiar selección de galería para evitar confusión
-        galInput.value = '';
-        showPreview(camInput.files[0]);
+        galInput.value = '';                 // deseleccionar galería
+        showPreview(camInput.files[0], 'cam');
       }
     });
 
     galInput.addEventListener('change', () => {
       if (galInput.files && galInput.files[0]) {
-        camInput.value = '';
-        showPreview(galInput.files[0]);
+        camInput.value = '';                 // deseleccionar cámara
+        showPreview(galInput.files[0], 'gal');
       }
     });
 
