@@ -39,8 +39,16 @@
     .thumb{width:100%;height:100%;object-fit:cover;display:block}
     .fileMeta{font-size:0.85em;color:#546e7a;margin-top:4px;line-height:1.2}
     button[disabled]{ opacity:.6; cursor:not-allowed }
+    .is-busy { pointer-events: none; opacity: .85; }
 
   </style>
+  <script>
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted || (performance.getEntriesByType('navigation')[0]?.type === 'back_forward')) {
+        location.reload();
+      }
+    });
+  </script>
 </head>
 <body>
   <h2>REVISIÓN DE TANQUES SUPERFICIALES Y ELEVADOS v2</h2>
@@ -294,6 +302,7 @@
     isSubmitting = state;
     sendBtn.disabled = state;
     sendBtn.textContent = state ? (label || "Enviando…") : "Enviar";
+    tanqueForm.classList.toggle('is-busy', state); // <- bloquea todo el form
     }
     // ===== Envío =====
     tanqueForm.addEventListener('submit', async e=>{
@@ -401,5 +410,6 @@
 </script>
 </body>
 </html>
+
 
 
