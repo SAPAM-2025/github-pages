@@ -205,7 +205,7 @@
       };
     }
 
-    // construye el nombre final de la imagen
+    // contruir el nombre de la imagen
     function buildFinalName(){
       const tanqueNorm = normTankName(tanque.value || '');
       const estado = getEstado();
@@ -239,14 +239,23 @@
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', JPEG_QUALITY));
       return blob || file;
     }
+
+    // ⛑️ Versión robusta: maneja errores y extrae Base64 sin colgarse
     function blobToBase64(blob){
       return new Promise((res, rej) => {
-        const fr = new FileReader();
-        fr.onload = () => res(fr.result.split(',')[1]);
-        fr.onerror = rej;
-        fr.readAsDataURL(blob);
+        try {
+          const fr = new FileReader();
+          fr.onerror = () => rej(new Error("Lectura de archivo falló"));
+          fr.onloadend = () => {
+            const out = String(fr.result || "");
+            const i = out.indexOf(",");
+            res(i >= 0 ? out.slice(i + 1) : out);
+          };
+          fr.readAsDataURL(blob);
+        } catch (e) { rej(e); }
       });
     }
+
     function humanSize(bytes){
       if (!bytes && bytes !== 0) return "";
       const k=1024,u=["B","KB","MB","GB"];const i=Math.floor(Math.log(bytes)/Math.log(k));
@@ -273,7 +282,7 @@
 
     // ===== Eventos de Inputs =====
     camInput.addEventListener('change', async () => {
-       photoSource = 'CAM';
+      photoSource = 'CAM';
       if (camInput.files && camInput.files[0]) {
         galInput.value = '';
         const file = camInput.files[0];
@@ -348,9 +357,23 @@
     blob = compressedGalBlob || await compressImage(/* o compressImageTarget */ galInput.files[0]);
   }
 
-  // A base64
+  // ⛑️ Guard: si no hay blob, aborta y libera el botón
+  if (!blob || !blob.size) {
+    setSubmitting(false);
+    alert("No se pudo preparar la imagen (archivo vacío). Vuelve a elegir la foto.");
+    return;
+  }
+
+  // A base64 (con try/catch para no quedar colgados en “Preparando imagen…”)
   setSubmitting(true, "Preparando imagen…");
-  const base64 = await blobToBase64(blob);
+  let base64 = "";
+  try {
+    base64 = await blobToBase64(blob);
+  } catch (err) {
+    setSubmitting(false);
+    alert("No se pudo preparar la imagen. Intenta de nuevo.");
+    return;
+  }
 
   // Recalcular nombre final por si cambiaron estado/pocero al final
   const finalName = buildFinalName();
@@ -358,7 +381,9 @@
   // ID de petición para deduplicar en backend (lo usaremos en el Paso 2)
   const clientReqId = (crypto.getRandomValues(new Uint32Array(1))[0].toString(16)) + Date.now().toString(36);
 
-  // contruye el data del json para enviarlo al backend
+  // Fuente de la foto para enviar al backend (además de ir en el nombre)
+  const src = photoSource || (camInput.files[0] ? 'CAM' : (galInput.files[0] ? 'GAL' : 'SRC'));
+
   const data = {
     tanque      : tanque.value,
     nivel       : document.querySelector('input[name=nivel]:checked')?.value || "",
@@ -390,11 +415,13 @@
   galInput.value = "";
   document.getElementById('previewCam').style.display = 'none';
   document.getElementById('previewGal').style.display = 'none';
-  photoSource = "";
 
   // 🔹 Limpia buffers/estados de compresión
   compressedCamBlob = compressedGalBlob = null;
   compressedCamName = compressedGalName = null;
+
+  // 🔹 Limpia estado de origen (CAM/GAL)
+  photoSource = "";
 
   // 🔹 (Opcional) reset del formulario completo:
   tanqueForm.reset(); // <-- si quieres dejar TODO en blanco
@@ -419,7 +446,3 @@
 </script>
 </body>
 </html>
-
-
-
-
