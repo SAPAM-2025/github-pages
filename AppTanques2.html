@@ -166,6 +166,7 @@
     const MAX_H = 1920;
     const JPEG_QUALITY = 0.90;
     
+    let photoSource = ""; // 'CAM' | 'GAL'
     let compressedCamBlob = null, compressedGalBlob = null;
     let compressedCamName = null, compressedGalName = null;
 
@@ -203,13 +204,16 @@
         nombre: sel.selectedOptions[0]?.dataset?.nombre || ''
       };
     }
+
+    // construye el nombre final de la imagen
     function buildFinalName(){
       const tanqueNorm = normTankName(tanque.value || '');
       const estado = getEstado();
       const { ini } = getPocero();
       const stamp = nowStampLocal();
+      const src = photoSource || (camInput.files[0] ? 'CAM' : (galInput.files[0] ? 'GAL' : 'SRC'));
       const id8 = randID8();
-      return `${tanqueNorm}_${stamp}_${estado}_${ini}_${id8}.jpg`;
+      return `${tanqueNorm}_${stamp}_${estado}_${ini}_${src}_${id8}.jpg`;
     }
 
     // ===== Compresión =====
@@ -269,6 +273,7 @@
 
     // ===== Eventos de Inputs =====
     camInput.addEventListener('change', async () => {
+       photoSource = 'CAM';
       if (camInput.files && camInput.files[0]) {
         galInput.value = '';
         const file = camInput.files[0];
@@ -284,6 +289,7 @@
     });
 
     galInput.addEventListener('change', async () => {
+      photoSource = 'GAL';
       if (galInput.files && galInput.files[0]) {
         camInput.value = '';
         const file = galInput.files[0];
@@ -352,6 +358,7 @@
   // ID de petición para deduplicar en backend (lo usaremos en el Paso 2)
   const clientReqId = (crypto.getRandomValues(new Uint32Array(1))[0].toString(16)) + Date.now().toString(36);
 
+  // contruye el data del json para enviarlo al backend
   const data = {
     tanque      : tanque.value,
     nivel       : document.querySelector('input[name=nivel]:checked')?.value || "",
@@ -363,6 +370,7 @@
     pocero_nombre: getPocero().nombre,
     imgName     : finalName,
     imgData     : base64,
+    photo_source: src,  // 'CAM' | 'GAL'
     client_req_id: clientReqId    // << para Paso 2 (antiduplicado en Apps Script)
   };
 
@@ -382,6 +390,7 @@
   galInput.value = "";
   document.getElementById('previewCam').style.display = 'none';
   document.getElementById('previewGal').style.display = 'none';
+  photoSource = "";
 
   // 🔹 Limpia buffers/estados de compresión
   compressedCamBlob = compressedGalBlob = null;
@@ -410,6 +419,7 @@
 </script>
 </body>
 </html>
+
 
 
 
