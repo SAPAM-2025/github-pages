@@ -38,6 +38,8 @@
               display:flex;align-items:center;justify-content:center;border-radius:6px;overflow:hidden}
     .thumb{width:100%;height:100%;object-fit:cover;display:block}
     .fileMeta{font-size:0.85em;color:#546e7a;margin-top:4px;line-height:1.2}
+    button[disabled]{ opacity:.6; cursor:not-allowed }
+
   </style>
 </head>
 <body>
@@ -60,7 +62,7 @@
     <!-- Pocero / Supervisor (lista) -->
     <label for="pocero">Pocero / Supervisor:</label>
     <select id="pocero" required></select>
-    <div class="hint">Nombre del <b>Pocero o Supervisor</b> que toma la evidencia <b>Fotográfica</b> y del nivel.</div>
+    <div class="hint">Nombre del <b>Pocero o Supervisor</b>que toma la evidencia<b>fotográfica</b> y del nivel.</div>
 
     <!-- Nivel -->
     <label>Nivel del Tanque:</label>
@@ -112,7 +114,8 @@
     <input type="hidden" id="latitud">
     <input type="hidden" id="longitud">
 
-    <button type="submit">Enviar</button>
+    <!--  <button type="submit">Enviar</button> -->
+    <button id="sendBtn" type="submit">Enviar</button>
   </form>
 
   <p id="estado"></p>
@@ -166,6 +169,7 @@
         .replace(/[^A-Z0-9\-]/g,'')
         .replace(/\-+/g,'-');
     }
+    
     function normInitials(str){
       return rmDiacritics(String(str || '').trim().toUpperCase()).replace(/[^A-Z]/g,'');
     }
@@ -285,71 +289,115 @@
         setPreview('gal', file, compressedGalBlob, finalName);
       }
     });
-
+      let isSubmitting = false;
+    function setSubmitting(state, label){
+    isSubmitting = state;
+    sendBtn.disabled = state;
+    sendBtn.textContent = state ? (label || "Enviando…") : "Enviar";
+    }
     // ===== Envío =====
     tanqueForm.addEventListener('submit', async e=>{
-      e.preventDefault();
+  e.preventDefault();
 
-      // Validaciones
-      if(!tanque.value){ alert("Selecciona un tanque"); return; }
-      if(!pocero.value){ alert("Selecciona un pocero/supervisor"); return; }
+  // Evitar dobles clics
+  if (isSubmitting) return;
 
-      // Ubicación
-      let latitude = "", longitude = "";
-      try {
-        const position = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true, timeout: 8000
-          });
-        });
-        latitude = position.coords.latitude;
-        longitude = position.coords.longitude;
-      } catch (err) {
-        alert("Ubicación no disponible: " + err.message);
-        return;
-      }
+  // Validaciones rápidas de UI
+  if(!tanque.value){ alert("Selecciona un tanque"); return; }
+  if(!pocero.value){ alert("Selecciona un pocero/supervisor"); return; }
+  if(!camInput.files[0] && !galInput.files[0]){ alert("Adjunta una imagen"); return; }
 
-      // Archivo y nombre final (si cambiaste pocero/estado tras elegir imagen, aquí se recalcula)
-      let blob = null;
-      if (camInput.files[0]) {
-        blob = compressedCamBlob || await compressImage(camInput.files[0]);
-      } else if (galInput.files[0]) {
-        blob = compressedGalBlob || await compressImage(galInput.files[0]);
-      } else {
-        alert("Adjunta una imagen");
-        return;
-      }
-      const finalName = buildFinalName();
-      const base64 = await blobToBase64(blob);
+  setSubmitting(true, "Obteniendo ubicación…");
 
-      const { ini: poceroIni, nombre: poceroNombre } = getPocero();
-
-      const data = {
-        tanque      : tanque.value,
-        nivel       : document.querySelector('input[name=nivel]:checked')?.value || "",
-        supervision : getEstado(),
-        anomalia    : anomalia.value,
-        latitud     : latitude,
-        longitud    : longitude,
-        pocero_ini  : poceroIni,     // << para Sheet
-        pocero_nombre: poceroNombre, // << para Sheet
-        imgName     : finalName,     // << nombre estandarizado
-        imgData     : base64
-      };
-
-      estado.textContent = "Enviando…";
-
-      fetch(WEBAPP_URL, {
-        method : "POST",
-        mode   : "no-cors",
-        body   : JSON.stringify(data)
-      })
-      .then(()=> estado.textContent = "¡Enviado correctamente!")
-      .catch(err=> estado.textContent = "Error: "+err);
+  // Geolocalización obligatoria
+  let latitude = "", longitude = "";
+  try {
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true, timeout: 8000
+      });
     });
-  </script>
+    latitude = position.coords.latitude;
+    longitude = position.coords.longitude;
+  } catch (err) {
+    setSubmitting(false);
+    alert("Ubicación no disponible: " + err.message);
+    return;
+  }
+
+  // Elegir blob comprimido según origen (tu compresión existente)
+  let blob = null;
+  if (camInput.files[0]) {
+    blob = compressedCamBlob || await compressImage(/* o compressImageTarget */ camInput.files[0]);
+  } else if (galInput.files[0]) {
+    blob = compressedGalBlob || await compressImage(/* o compressImageTarget */ galInput.files[0]);
+  }
+
+  // A base64
+  setSubmitting(true, "Preparando imagen…");
+  const base64 = await blobToBase64(blob);
+
+  // Recalcular nombre final por si cambiaron estado/pocero al final
+  const finalName = buildFinalName();
+
+  // ID de petición para deduplicar en backend (lo usaremos en el Paso 2)
+  const clientReqId = (crypto.getRandomValues(new Uint32Array(1))[0].toString(16)) + Date.now().toString(36);
+
+  const data = {
+    tanque      : tanque.value,
+    nivel       : document.querySelector('input[name=nivel]:checked')?.value || "",
+    supervision : getEstado(),
+    anomalia    : anomalia.value,
+    latitud     : latitude,
+    longitud    : longitude,
+    pocero_ini  : getPocero().ini,
+    pocero_nombre: getPocero().nombre,
+    imgName     : finalName,
+    imgData     : base64,
+    client_req_id: clientReqId    // << para Paso 2 (antiduplicado en Apps Script)
+  };
+
+  estado.textContent = "Enviando…";
+  setSubmitting(true, "Enviando…");
+
+  fetch(WEBAPP_URL, {
+    method : "POST",
+    mode   : "no-cors",
+    body   : JSON.stringify(data)
+  })
+  .then(()=> {
+  estado.textContent = "¡Enviado correctamente!";
+
+  // 🔹 Limpia inputs de archivo y previews
+  camInput.value = "";
+  galInput.value = "";
+  document.getElementById('previewCam').style.display = 'none';
+  document.getElementById('previewGal').style.display = 'none';
+
+  // 🔹 Limpia buffers/estados de compresión
+  compressedCamBlob = compressedGalBlob = null;
+  compressedCamName = compressedGalName = null;
+
+  // 🔹 (Opcional) reset del formulario completo:
+  tanqueForm.reset(); // <-- si quieres dejar TODO en blanco
+
+  // 🔹 (Opcional) si NO usas reset total y quieres solo poner "Seleccione…":
+  // pocero.selectedIndex = 0;
+  // tanque.selectedIndex = 0;
+  // anomalia.value = "";
+
+  // 🔹 (Opcional) subir a inicio para ver el mensaje
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+})
+
+  .catch(err=> {
+    estado.textContent = "Error: " + err;
+    alert("No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.");
+  })
+  .finally(()=>{
+    setSubmitting(false);  // vuelve a habilitar el botón
+  });
+});
+</script>
 </body>
 </html>
-
-
-
